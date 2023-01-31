@@ -88,6 +88,7 @@ build() {
     -DWITH_GNU_GSL=ON \
     -DWITH_POSTGRES=ON \
     -DWITH_JANSSON=ON \
+    -DCGAL_DIR=/usr/lib/cmake/CGAL \
     ../
 
   ## Debug build with default compiler flags.
