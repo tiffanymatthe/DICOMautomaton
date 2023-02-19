@@ -71,6 +71,11 @@ bool GetHausdorffDistance(Drover &DICOM_data,
     if (sm_count > num_meshes) {
         FUNCWARN("Can only calculate the HausdorffDistance of two meshes, currently have " << sm_count << " meshes selected. Only looking at last two.");
     }
+    
+    std::shared_ptr<Surface_Mesh> mesh1;
+    std::shared_ptr<Surface_Mesh> mesh2;
+
+    bool found_mesh = false;
 
     for(auto & smp_it : SMs){
         if (num_to_skip != 0) {
@@ -78,12 +83,55 @@ bool GetHausdorffDistance(Drover &DICOM_data,
             continue;
         }
         auto mesh = (*smp_it)->meshes;
-        FUNCINFO("Found a mesh with the following metadata");
-        for(const auto& elem : mesh.metadata)
-        {
-            FUNCINFO(elem.first << " " << elem.second << "\n");
+        // FUNCINFO("Found a mesh with the following metadata");
+        // for(const auto& elem : mesh.metadata)
+        // {
+        //     FUNCINFO(elem.first << " " << elem.second << "\n");
+        // }
+        if (!found_mesh) {
+            mesh1 = *smp_it;
+            found_mesh = true;
+        } else {
+            mesh2 = *smp_it;
+            break;
         }
     }
+
+    double max_distance = 0;
+
+    FUNCINFO("Iterating through " << size(mesh1->meshes.vertices) << " and " << size(mesh2->meshes.vertices) << " vertices.")
+
+    for (auto & vertex : mesh1->meshes.vertices) {
+        // find closest vertex on mesh2 that corresponds to vertex
+        double min_distance = -1;
+        for (auto & vertex2 : mesh2->meshes.vertices) {
+            double distance = vertex.distance(vertex2);
+            if (min_distance == -1) {
+                min_distance = distance;
+            } else {
+                min_distance = std::min(distance, min_distance);
+            }
+        }
+        max_distance = std::max(min_distance, max_distance);
+    }
+
+    double second_max_distance = 0;
+
+    for (auto & vertex : mesh2->meshes.vertices) {
+        // find closest vertex on mesh2 that corresponds to vertex
+        double min_distance = -1;
+        for (auto & vertex2 : mesh1->meshes.vertices) {
+            double distance = vertex.distance(vertex2);
+            if (min_distance == -1) {
+                min_distance = distance;
+            } else {
+                min_distance = std::min(distance, min_distance);
+            }
+        }
+        second_max_distance = std::max(min_distance, second_max_distance);
+    }
+
+    FUNCINFO("The Hausdorff distance is " << max_distance << " or " << second_max_distance);
 
     return true;
 }
