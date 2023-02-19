@@ -39,7 +39,7 @@ OperationDoc OpArgDocGetHausdorffDistance(){
     out.args.emplace_back();
     out.args.back() = SMWhitelistOpArgDoc();
     out.args.back().name = "MeshSelection";
-    out.args.back().default_val = "last";
+    out.args.back().default_val = "all";
 
     return out;
 }
@@ -63,16 +63,26 @@ bool GetHausdorffDistance(Drover &DICOM_data,
     long int completed = 0;
     const auto sm_count = SMs.size();
     const int num_meshes = 2;
+    int num_to_skip = sm_count - num_meshes;
+
     if (sm_count < num_meshes) {
         FUNCERR("Must select at least two meshes.");
     }
     if (sm_count > num_meshes) {
-        FUNCERR("Can only calculate the HausdorffDistance of two meshes, currently have " << sm_count << " meshes selected.");
+        FUNCWARN("Can only calculate the HausdorffDistance of two meshes, currently have " << sm_count << " meshes selected. Only looking at last two.");
     }
 
     for(auto & smp_it : SMs){
+        if (num_to_skip != 0) {
+            num_to_skip--;
+            continue;
+        }
         auto mesh = (*smp_it)->meshes;
-        FUNCINFO("Found a mesh");
+        FUNCINFO("Found a mesh with the following metadata");
+        for(const auto& elem : mesh.metadata)
+        {
+            FUNCINFO(elem.first << " " << elem.second << "\n");
+        }
     }
 
     return true;
