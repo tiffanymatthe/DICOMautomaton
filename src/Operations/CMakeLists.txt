@@ -111,6 +111,7 @@ add_library(Operations_objs OBJECT
     GenerateVirtualDataImageSphereV1.cc
     GenerateVirtualDataPerfusionV1.cc
     GenerateWarp.cc
+    GetHausdorffDistance.cc
     GiveWholeImageArrayABoneWindowLevel.cc
     GiveWholeImageArrayAHeadAndNeckWindowLevel.cc
     GiveWholeImageArrayAThoraxWindowLevel.cc

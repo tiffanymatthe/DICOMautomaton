@@ -157,6 +157,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
     Explicator X(FilenameLex);
 
+    FUNCINFO("In Convert Contours To Meshes, SPECIAL HERE.");
+
     //---------------------------------------------- User Parameters --------------------------------------------------
     const auto NormalizedROILabelRegex = OptArgs.getValueStr("NormalizedROILabelRegex").value();
     const auto ROILabelRegex = OptArgs.getValueStr("ROILabelRegex").value();
