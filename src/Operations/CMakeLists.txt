@@ -16,6 +16,7 @@ add_library(Operations_objs OBJECT
     BuildLexiconInteractively.cc
     ClusterDBSCAN.cc
     CombineMeshes.cc
+    CompareMeshes.cc
     ComparePixels.cc
     ContourBasedRayCastDoseAccumulate.cc
     ContouringAides.cc
@@ -111,7 +112,6 @@ add_library(Operations_objs OBJECT
     GenerateVirtualDataImageSphereV1.cc
     GenerateVirtualDataPerfusionV1.cc
     GenerateWarp.cc
-    GetHausdorffDistance.cc
     GiveWholeImageArrayABoneWindowLevel.cc
     GiveWholeImageArrayAHeadAndNeckWindowLevel.cc
     GiveWholeImageArrayAThoraxWindowLevel.cc

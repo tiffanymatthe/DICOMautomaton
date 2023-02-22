@@ -37,6 +37,7 @@
 #include "Operations/BuildLexiconInteractively.h"
 #include "Operations/ClusterDBSCAN.h"
 #include "Operations/CombineMeshes.h"
+#include "Operations/CompareMeshes.h"
 #include "Operations/ComparePixels.h"
 #include "Operations/ContourBasedRayCastDoseAccumulate.h"
 #include "Operations/ContourSimilarity.h"
@@ -132,7 +133,6 @@
 #include "Operations/GenerateVirtualDataDoseStairsV1.h"
 #include "Operations/GenerateVirtualDataImageSphereV1.h"
 #include "Operations/GenerateVirtualDataPerfusionV1.h"
-#include "Operations/GetHausdorffDistance.h"
 #include "Operations/GiveWholeImageArrayABoneWindowLevel.h"
 #include "Operations/GiveWholeImageArrayAHeadAndNeckWindowLevel.h"
 #include "Operations/GiveWholeImageArrayAThoraxWindowLevel.h"
@@ -281,6 +281,7 @@ std::map<std::string, op_packet_t> Known_Operations(){
     out["CellularAutomata"] = std::make_pair(OpArgDocCellularAutomata, CellularAutomata);
     out["ClusterDBSCAN"] = std::make_pair(OpArgDocClusterDBSCAN, ClusterDBSCAN);
     out["CombineMeshes"] = std::make_pair(OpArgDocCombineMeshes, CombineMeshes);
+    out["CompareMeshes"] = std::make_pair(OpArgDocCompareMeshes, CompareMeshes);
     out["ComparePixels"] = std::make_pair(OpArgDocComparePixels, ComparePixels);
     out["ContourBasedRayCastDoseAccumulate"] = std::make_pair(OpArgDocContourBasedRayCastDoseAccumulate, ContourBasedRayCastDoseAccumulate);
     out["ContouringAides"] = std::make_pair(OpArgDocContouringAides, ContouringAides);
@@ -375,7 +376,6 @@ std::map<std::string, op_packet_t> Known_Operations(){
     out["GenerateVirtualDataImageSphereV1"] = std::make_pair(OpArgDocGenerateVirtualDataImageSphereV1, GenerateVirtualDataImageSphereV1);
     out["GenerateVirtualDataPerfusionV1"] = std::make_pair(OpArgDocGenerateVirtualDataPerfusionV1, GenerateVirtualDataPerfusionV1);
     out["GenerateWarp"] = std::make_pair(OpArgDocGenerateWarp, GenerateWarp);
-    out["GetHausdorffDistance"] = std::make_pair(OpArgDocGetHausdorffDistance, GetHausdorffDistance);
     out["GiveWholeImageArrayABoneWindowLevel"] = std::make_pair(OpArgDocGiveWholeImageArrayABoneWindowLevel, GiveWholeImageArrayABoneWindowLevel);
     out["GiveWholeImageArrayAHeadAndNeckWindowLevel"] = std::make_pair(OpArgDocGiveWholeImageArrayAHeadAndNeckWindowLevel, GiveWholeImageArrayAHeadAndNeckWindowLevel);
     out["GiveWholeImageArrayAnAbdominalWindowLevel"] = std::make_pair(OpArgDocGiveWholeImageArrayAnAbdominalWindowLevel, GiveWholeImageArrayAnAbdominalWindowLevel);

@@ -1,4 +1,4 @@
-// GetHausdorffDistance.h.
+// CompareMeshes.h.
 
 #pragma once
 
@@ -8,9 +8,9 @@
 #include "../Structs.h"
 
 
-OperationDoc OpArgDocGetHausdorffDistance();
+OperationDoc OpArgDocCompareMeshes();
 
-bool GetHausdorffDistance(Drover &DICOM_data,
+bool CompareMeshes(Drover &DICOM_data,
                                const OperationArgPkg& /*OptArgs*/,
                                std::map<std::string, std::string>& /*InvocationMetadata*/,
                                const std::string& /*FilenameLex*/);

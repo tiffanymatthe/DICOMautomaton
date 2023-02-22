@@ -25,11 +25,11 @@
 #include "../Simple_Meshing.h"
 #include "../Surface_Meshes.h"
 
-#include "GetHausdorffDistance.h"
+#include "CompareMeshes.h"
 
-OperationDoc OpArgDocGetHausdorffDistance(){
+OperationDoc OpArgDocCompareMeshes(){
     OperationDoc out;
-    out.name = "GetHausdorffDistance";
+    out.name = "CompareMeshes";
 
     out.desc = 
         "This routine calculates the hausdorff distance between two meshes and prints it to the terminal output."
@@ -44,7 +44,7 @@ OperationDoc OpArgDocGetHausdorffDistance(){
     return out;
 }
 
-bool GetHausdorffDistance(Drover &DICOM_data,
+bool CompareMeshes(Drover &DICOM_data,
                                const OperationArgPkg& OptArgs,
                                std::map<std::string, std::string>& /*InvocationMetadata*/,
                                const std::string& FilenameLex){
@@ -132,6 +132,10 @@ bool GetHausdorffDistance(Drover &DICOM_data,
     }
 
     FUNCINFO("The Hausdorff distance is " << max_distance << " or " << second_max_distance);
+
+    // print out surface areas
+    FUNCINFO("SURFACE AREA: First mesh = " << mesh1->meshes.surface_area() << ", second mesh = " << mesh2->meshes.surface_area());
+    FUNCINFO("SURFACE AREA difference: " << mesh1->meshes.surface_area() - mesh2->meshes.surface_area());
 
     return true;
 }
