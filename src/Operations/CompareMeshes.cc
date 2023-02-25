@@ -32,14 +32,18 @@ OperationDoc OpArgDocCompareMeshes(){
     out.name = "CompareMeshes";
 
     out.desc = 
-        "This routine calculates the hausdorff distance between two meshes and prints it to the terminal output."
+        "This routine calculates various metrics of difference between two meshes and prints it to the terminal output."
         ;
 
 
     out.args.emplace_back();
     out.args.back() = SMWhitelistOpArgDoc();
-    out.args.back().name = "MeshSelection";
-    out.args.back().default_val = "all";
+    out.args.back().name = "MeshSelection1";
+    out.args.back().default_val = "#-0";
+    out.args.emplace_back();
+    out.args.back() = SMWhitelistOpArgDoc();
+    out.args.back().name = "MeshSelection2";
+    out.args.back().default_val = "#-1";
 
     return out;
 }
@@ -54,48 +58,24 @@ bool CompareMeshes(Drover &DICOM_data,
     FUNCINFO("In get HAUSDORFF distance.");
 
     //---------------------------------------------- User Parameters --------------------------------------------------
-    const auto MeshSelectionStr = OptArgs.getValueStr("MeshSelection").value();
+    const auto MeshSelection1Str = OptArgs.getValueStr("MeshSelection1").value();
+    const auto MeshSelection2Str = OptArgs.getValueStr("MeshSelection2").value();
 
     //-----------------------------------------------------------------------------------------------------------------
     auto SMs_all = All_SMs( DICOM_data );
-    auto SMs = Whitelist( SMs_all, MeshSelectionStr );
+    auto SMs1 = Whitelist( SMs_all, MeshSelection1Str );
+    auto SMs2 = Whitelist( SMs_all, MeshSelection2Str );
 
-    long int completed = 0;
-    const auto sm_count = SMs.size();
-    const int num_meshes = 2;
-    int num_to_skip = sm_count - num_meshes;
 
-    if (sm_count < num_meshes) {
+    if (SMs1.size() < 1 || SMs2.size() < 1) {
         FUNCERR("Must select at least two meshes.");
     }
-    if (sm_count > num_meshes) {
-        FUNCWARN("Can only calculate the HausdorffDistance of two meshes, currently have " << sm_count << " meshes selected. Only looking at last two.");
+    if (SMs1.size() > 1 || SMs2.size() > 1) {
+        FUNCWARN("Can only calculate the metrics of two meshes, only looking at last element of each selected");
     }
     
-    std::shared_ptr<Surface_Mesh> mesh1;
-    std::shared_ptr<Surface_Mesh> mesh2;
-
-    bool found_mesh = false;
-
-    for(auto & smp_it : SMs){
-        if (num_to_skip != 0) {
-            num_to_skip--;
-            continue;
-        }
-        auto mesh = (*smp_it)->meshes;
-        // FUNCINFO("Found a mesh with the following metadata");
-        // for(const auto& elem : mesh.metadata)
-        // {
-        //     FUNCINFO(elem.first << " " << elem.second << "\n");
-        // }
-        if (!found_mesh) {
-            mesh1 = *smp_it;
-            found_mesh = true;
-        } else {
-            mesh2 = *smp_it;
-            break;
-        }
-    }
+    std::shared_ptr<Surface_Mesh> mesh1 = *SMs1.front();
+    std::shared_ptr<Surface_Mesh> mesh2 = *SMs2.front();
 
     double max_distance = 0;
 
