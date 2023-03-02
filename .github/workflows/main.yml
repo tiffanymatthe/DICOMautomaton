@@ -17,7 +17,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: prep
         run: |
-             git config --global --add safe.directory '*'
              cp -R ./docker/builders/mxe /scratch
              cp -R . /dcma
              ./scripts/enable_swapfile.sh
@@ -81,7 +80,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: prep
         run: |
-             git config --global --add safe.directory '*'
              cp -R ./docker/builders/ci /scratch
              cp -R . /dcma
              ./scripts/enable_swapfile.sh
@@ -127,7 +125,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: prep
         run: |
-             git config --global --add safe.directory '*'
              cp -R ./docker/builders/ci /scratch
              cp -R . /dcma
              ./scripts/enable_swapfile.sh
@@ -176,7 +173,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: prep
         run: |
-             git config --global --add safe.directory '*'
              cp -R ./docker/builders/ci /scratch
              cp -R . /dcma
              ./scripts/enable_swapfile.sh
@@ -222,7 +218,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: prep
         run: |
-             git config --global --add safe.directory '*'
              cp -R . ~/dcma
              export DEBIAN_FRONTEND="noninteractive"
              sudo apt-get update --yes
@@ -282,7 +277,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: prep
         run: |
-             git config --global --add safe.directory '*'
              cp -R . ~/dcma
              export DEBIAN_FRONTEND="noninteractive"
              sudo apt-get update --yes
@@ -342,7 +336,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: prep
         run: |
-             git config --global --add safe.directory '*'
              cp -R . ~/dcma
              export DEBIAN_FRONTEND="noninteractive"
              sudo apt-get update --yes
