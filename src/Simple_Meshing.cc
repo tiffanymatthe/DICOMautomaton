@@ -48,6 +48,18 @@ Estimate_Contour_Correspondence(
     contour_of_points<double> contour_A = A.get();
     contour_of_points<double> contour_B = B.get();
 
+    // std::cout << "contour A" << std::endl;
+    // for (auto it = contour_A.points.begin(); it != contour_A.points.end(); ++it){
+    //     std::cout << "[" << it->x << ", " << it->y << ", " << it->z << "], ";
+    // }
+    // std::cout << std::endl;
+
+    // std::cout << "contour B" << std::endl;
+    // for (auto it = contour_B.points.begin(); it != contour_B.points.end(); ++it){
+    //     std::cout << "[" << it->x << ", " << it->y << ", " << it->z << "], ";
+    // }
+    // std::cout << std::endl;
+
     const auto N_A = contour_A.points.size();
     const auto N_B = contour_B.points.size();
     if( N_A == 0 ){
@@ -66,6 +78,10 @@ Estimate_Contour_Correspondence(
     try{
         ortho_unit_B = contour_B.Estimate_Planar_Normal();
     }catch(const std::exception &){}
+
+    std::cout << "ortho units" << std::endl;
+    std::cout << ortho_unit_A << std::endl;
+    std::cout << ortho_unit_B << std::endl;
 
     // Ensure the contours have the same orientation.
     if(ortho_unit_A.Dot(ortho_unit_B) <= 0.0){
@@ -103,6 +119,7 @@ Estimate_Contour_Correspondence(
         const bool assume_planar_contours = true;
         const auto area_A = std::abs( contour_A.Get_Signed_Area(assume_planar_contours) );
         const auto area_B = std::abs( contour_B.Get_Signed_Area(assume_planar_contours) );
+        FUNCINFO("area a " << area_A << " area b " << area_B);
         const auto scale = std::sqrt( area_A / area_B );
         if(!std::isfinite(scale)){
             throw std::invalid_argument("Contour area ratio is not finite. Refusing to continue.");
@@ -114,6 +131,8 @@ Estimate_Contour_Correspondence(
         // contour slice orientation.
         const auto dcentroid = plane_A.Project_Onto_Plane_Orthogonally(centroid_A)
                              - plane_A.Project_Onto_Plane_Orthogonally(centroid_B);
+        
+        FUNCINFO("dcentroid " << dcentroid);
 
         for(auto &p : contour_B.points){
             // Scale the vertex distance.
@@ -142,396 +161,431 @@ Estimate_Contour_Correspondence(
     //       best (but slow). An alternative is to preferentially consider low-curvature vertices.
     //
     // ... TODO ...
-    auto p_i = beg_A;
-    auto p_j = beg_B;
-    {
-        double min_sqd_i_j = std::numeric_limits<double>::infinity();
-        for(auto p = beg_B; p != end_B; ++p){
-            const auto sqd_i_j = p_i->sq_dist(*p);
-            if(sqd_i_j < min_sqd_i_j){
-                p_j = p;
-                min_sqd_i_j = sqd_i_j;
-            }
-        }
-        //YLOGINFO("Shortest distance is between " << *p_i << " and " << *p_j);
-    }
 
-    // Estimates the radius of the circumsphere (i.e., the smallest sphere that intersects all vertices) that bounds the
-    // embedded triangle ABC.
-    //
-    // Note: see https://en.wikipedia.org/wiki/Circumscribed_circle#Higher_dimensions
-    const auto circumsphere_radius = []( const vec3<double> &A,
-                                         const vec3<double> &B,
-                                         const vec3<double> &C ) -> double {
-        const auto a = A - C;
-        const auto b = B - C;
-        const auto face_area = 0.5 * a.Cross(b).length();
-        auto circum_r = (a.length() * b.length() * (a-b).length()) / (4.0 * face_area );
-        if(std::isnan(circum_r)) circum_r = std::numeric_limits<double>::infinity();
-        return circum_r;
-    };
-
-    // Estimates the local curvature of a polygon using previous, current, and next vertices.
-    const auto est_curvature = [&]( const vec3<double> &A,
-                                    const vec3<double> &B,
-                                    const vec3<double> &C ) -> double {
-        const auto circum_r = circumsphere_radius(A, B, C);
-        const auto curvature = std::pow(circum_r, -2.0);
-        return curvature;
-    };
-
-/*
-    // Alternative that isn't actually curvature, but might be useful.
-    const auto est_curvature = [&]( const vec3<double> &A,
-                                    const vec3<double> &B,
-                                    const vec3<double> &C ) -> double {
-        const auto a = A - C;
-        const auto b = B - C;
-        bool OK;
-        auto angle = a.angle(b, &OK);
-        if(!OK) angle = pi; // Maybe not the best choice???
-        const auto curvature = std::abs( angle / pi );
-        return curvature;
-    };
-    // Computes the curvature-weighted perimeter of a contour.
-    const auto weighted_perimeter = [&]( const contour_of_points<double> &c ) -> double {
-        double wp_tot = 0.0;
-
-        const auto beg = std::begin(c.points);
-        const auto end = std::end(c.points);
-        const auto last = std::prev(end);
-        for(auto itB = beg; itB != end; ++itB){
-            auto itA = (itB == beg ) ? std::prev(end) : std::prev(itB);
-            auto itC = (itB == last) ? beg : std::next(itB);
-
-            const auto dperim = itB->distance(*itA);
-            const auto curvature = est_curvature(*itA, *itB, *itC);
-
-            wp_tot += dperim * curvature;
-        }
-        return wp_tot;
-    };
-    const auto total_wperimeter_A = weighted_perimeter(contour_A);
-    const auto total_wperimeter_B = weighted_perimeter(contour_B);
-    YLOGINFO("total_wperimeter_A = " << total_wperimeter_A);
-    YLOGINFO("total_wperimeter_B = " << total_wperimeter_B);
-*/
-
-    // Walk the contours, creating a sort of triangle strip.
-    //std::set<size_t> used_verts_A;
-    //std::set<size_t> used_verts_B;
-    //size_t i = std::distance( beg_A, p_i );
-    //size_t j = std::distance( beg_B, p_j );
-    double accum_perimeter_A = 0.0;
-    double accum_perimeter_B = 0.0;
-
-    double accum_wperimeter_A = 0.0;
-    double accum_wperimeter_B = 0.0;
-
-    vec3<double> prev_face_N( std::numeric_limits<double>::quiet_NaN(),
-                              std::numeric_limits<double>::quiet_NaN(),
-                              std::numeric_limits<double>::quiet_NaN() );
-
-    size_t N_edges_consumed_A = 0;
-    size_t N_edges_consumed_B = 0;
     std::vector<std::array<size_t, 3>> faces; // Assuming A vertices are first. Zero-based.
+    double total_face_area = std::numeric_limits<double>::infinity();
 
-    for(size_t n = 0; n < (N_A + N_B); ++n){
-        // Figure out which candidate vertices we have.
-        auto p_i_next = std::next(p_i);
-        auto p_j_next = std::next(p_j);
+    for (auto start_A = beg_A; start_A != end_A; ++start_A) {
+        auto p_i = start_A;
 
-        p_i_next = (p_i_next == end_A) ? beg_A : p_i_next; // Circular wrap.
-        p_j_next = (p_j_next == end_B) ? beg_B : p_j_next; // Circular wrap.
+        for (auto start_B = beg_B; start_B != end_B; ++start_B) {
+            
+            auto p_j = start_B;
 
+            // {
+            //     double min_sqd_i_j = std::numeric_limits<double>::infinity();
+            //     for(auto p = beg_B; p != end_B; ++p){
+            //         const auto sqd_i_j = p_i->sq_dist(*p);
+            //         if(sqd_i_j < min_sqd_i_j){
+            //             p_j = p;
+            //             min_sqd_i_j = sqd_i_j;
+            //         }
+            //     }
+            //     YLOGINFO("Shortest distance is between " << *p_i << " and " << *p_j);
+            // }
 
-        // Of the two candidate triangles, select one based on some criteria.
-        double criteria_w_i_next = std::numeric_limits<double>::infinity();
-        double criteria_w_j_next = std::numeric_limits<double>::infinity();
-
-        double candidate_A_dwperim = 0.0;
-        double candidate_B_dwperim = 0.0;
-
-        if(N_edges_consumed_A < N_A){
-            // Smallest face area.
-            //criteria_w_i_next = 0.5 * ((*p_i_next - *p_i).Cross(*p_j - *p_i) ).length();
-
-            // Alternate back-and-forth between two ~orthogonal metrics.
-            if( (N_edges_consumed_A + N_edges_consumed_B) % 2 == 0){
-                // Shortest longest edge length.
-                const auto edge_length = (*p_i_next - *p_j).length();
-                criteria_w_i_next = edge_length;
-            }else{
-                // Most 'vertical' cross-edge.
-                criteria_w_i_next = -std::abs( (*p_i_next - *p_j).unit().Dot(ortho_unit_A) );
-            }
-
-            // Smallest discrepancy between interior angles.
-            //bool OK;
-            //const auto inf = 5000.0;
-            //const auto angle_a = (OK) ? (*p_i_next - *p_i).angle(*p_j - *p_i, &OK) : inf;
-            //const auto angle_b = (OK) ? (*p_i - *p_i_next).angle(*p_j - *p_i_next, &OK) : inf;
-            //const auto angle_c = (OK) ? (*p_i - *p_j).angle(*p_i_next - *p_j, &OK) : inf;
-            //const auto angle_max = std::max( {angle_a, angle_b, angle_c} );
-            //const auto angle_min = std::min( {angle_a, angle_b, angle_c} );
-            //if(OK){
-            //    criteria_w_i_next = angle_max;
-            //    //criteria_w_i_next = angle_max - angle_min;
-            //}else{
-            //    criteria_w_i_next = - inf;
-            //}
-
-            //// Smallest projected area onto the contour plane.
-            //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_i, *p_i_next, *p_j }} );
-            ////cop.closed = true;
-            //const auto proj_cop = cop.Project_Onto_Plane_Orthogonally(plane_A);
-            //criteria_w_i_next = proj_cop.Perimeter();
-            ////proj_cop.closed = true;
-            ////criteria_w_i_next = std::abs( proj_cop.Get_Signed_Area(true) );
-
-            //// Whichever face is most disaligned from the previous face.
-            //if(prev_face_N.isfinite()){
-            //    const auto cand_face_N = (*p_i_next - *p_j).Cross(*p_i - *p_j).unit();
-            //    const auto agree = - std::abs( cand_face_N.Dot(prev_face_N) );
-            //    if(cand_face_N.isfinite()) criteria_w_i_next = agree;
-            //}
-
-
-            // Pick whichever is lagging in terms of perimeter.
-            //criteria_w_i_next = accum_perimeter_A + (*p_i_next - *p_i).length() / total_perimeter_A;
-
-            // Smallest face perimeter.
-            //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_i, *p_i_next, *p_j }} );
-            //cop.closed = true;
-            //criteria_w_i_next = cop.Perimeter();
-
-            // Penalize adjacent moves that backtrack.
-
-            // ... pointless because we can't backtrack? ...
-
-            // Prefer the edge that most closely aligns with the rotational sweep plane (i.e., the hand of a clock
-            // circulating around the contour).
-            //const auto p_mid = (*p_i_next + *p_j) * 0.5;
-            //const auto sweep_line = (p_mid - centre_avg).unit();
-            //const auto edge_line = (*p_i_next - *p_j).unit();
-            //criteria_w_i_next = -std::abs( edge_line.Dot(sweep_line) );
-
-            //// Prefer the edge that makes the smallest rotational advancement.
-            //const auto proj_p_j = plane_A.Project_Onto_Plane_Orthogonally(*p_j);
-            //const auto angle = (*p_i_next - centroid_A).angle(proj_p_j - centroid_A);
-            //const auto orien = (*p_i_next - centroid_A).Cross(proj_p_j - centroid_A).Dot(ortho_unit_A);
-            //const double sign = (orien < 0) ? 1.0 : -1.0;
-            //criteria_w_i_next = sign * angle;
-
-            //Prefer the edge that 'consumes' the minimal arc length.
-            //const auto hand_a = plane_A.Project_Onto_Plane_Orthogonally(*p_i_next) - plane_A.Project_Onto_Plane_Orthogonally(*p_j);
-            //criteria_w_i_next = hand_a.length();
-
-            // Prefer the edge that most closely aligns with the local normal vector.
+            // Estimates the radius of the circumsphere (i.e., the smallest sphere that intersects all vertices) that bounds the
+            // embedded triangle ABC.
             //
-            // Ideally considering only the most locally curved contour. TODO.
-            ////const auto local_norm = (*p_i_next - *p_i).Cross(ortho_unit_A).unit();
-            //const auto local_norm = (*p_j_next - *p_j).Cross(ortho_unit_A).unit();
-            //const auto face_norm = (*p_i_next - *p_j).Cross(*p_i - *p_j).unit();
-            ////criteria_w_i_next = 0.5 * ((*p_i_next - *p_i).Cross(*p_j - *p_i) ).length();
-            ////const auto edge_line = (*p_i_next - *p_j).unit();
-            //criteria_w_i_next = local_norm.Dot(face_norm) * -1.0;
+            // Note: see https://en.wikipedia.org/wiki/Circumscribed_circle#Higher_dimensions
+            const auto circumsphere_radius = []( const vec3<double> &A,
+                                                const vec3<double> &B,
+                                                const vec3<double> &C ) -> double {
+                const auto a = A - C;
+                const auto b = B - C;
+                const auto face_area = 0.5 * a.Cross(b).length();
+                auto circum_r = (a.length() * b.length() * (a-b).length()) / (4.0 * face_area );
+                if(std::isnan(circum_r)) circum_r = std::numeric_limits<double>::infinity();
+                YLOGINFO("Circumsphere_radius " << circum_r);
+                return circum_r;
+            };
 
-            //// Ratio of triangle area to circumcircle (actually circumsphere) area.
-            //const auto a = *p_i_next - *p_j;
-            //const auto b = *p_i - *p_j;
-            //const auto face_area = 0.5 * a.Cross(b).length();
-            //if(face_area == 0.0){
-            //    criteria_w_i_next = 0.0; // Acceptable, but won't beat any legitimate candidates.
-            //}else{
-            //    const auto circum_r = (a.length() * b.length() * (a-b).length()) / (4.0 * face_area );
-            //    const auto circum_a = pi * circum_r * circum_r;
-            //    criteria_w_i_next = - face_area / circum_a;
-            //}
+            // Estimates the local curvature of a polygon using previous, current, and next vertices.
+            const auto est_curvature = [&]( const vec3<double> &A,
+                                            const vec3<double> &B,
+                                            const vec3<double> &C ) -> double {
+                const auto circum_r = circumsphere_radius(A, B, C);
+                const auto curvature = std::pow(circum_r, -2.0);
+                return curvature;
+            };
 
-            //// Weighted perimeter.
-            //const auto beg = std::begin(contour_A.points);
-            //const auto end = std::end(contour_A.points);
-            //const auto last = std::prev(end);
-            //const auto p_i_prev = (p_i == beg) ? last : std::prev(p_i);
+        /*
+            // Alternative that isn't actually curvature, but might be useful.
+            const auto est_curvature = [&]( const vec3<double> &A,
+                                            const vec3<double> &B,
+                                            const vec3<double> &C ) -> double {
+                const auto a = A - C;
+                const auto b = B - C;
+                bool OK;
+                auto angle = a.angle(b, &OK);
+                if(!OK) angle = pi; // Maybe not the best choice???
+                const auto curvature = std::abs( angle / pi );
+                return curvature;
+            };
+            // Computes the curvature-weighted perimeter of a contour.
+            const auto weighted_perimeter = [&]( const contour_of_points<double> &c ) -> double {
+                double wp_tot = 0.0;
 
-            //const auto curvature = est_curvature(*p_i_prev, *p_i, *p_i_next);
-            //const auto dperim = p_i->distance(*p_i_prev);
-            //const auto dwperim = dperim * curvature;
-            //const auto d_wperimeter = (accum_wperimeter_A + dwperim) / total_wperimeter_A;
-            //candidate_A_dwperim = dwperim;
-            //criteria_w_i_next = - d_wperimeter;
-        }
-        if(N_edges_consumed_B < N_B){
-            // Smallest face area.
-            //criteria_w_j_next = 0.5 * ((*p_j_next - *p_j).Cross(*p_i - *p_j) ).length();
+                const auto beg = std::begin(c.points);
+                const auto end = std::end(c.points);
+                const auto last = std::prev(end);
+                for(auto itB = beg; itB != end; ++itB){
+                    auto itA = (itB == beg ) ? std::prev(end) : std::prev(itB);
+                    auto itC = (itB == last) ? beg : std::next(itB);
 
-            // Alternate back-and-forth between two ~orthogonal metrics.
-            if( (N_edges_consumed_A + N_edges_consumed_B) % 2 == 0){
-                // Shortest longest edge length.
-                const auto edge_length = (*p_j_next - *p_i).length();
-                criteria_w_j_next = edge_length;
-            }else{
-                // Most 'vertical' cross-edge.
-                criteria_w_j_next = -std::abs( (*p_j_next - *p_i).unit().Dot(ortho_unit_B) );
+                    const auto dperim = itB->distance(*itA);
+                    const auto curvature = est_curvature(*itA, *itB, *itC);
+
+                    wp_tot += dperim * curvature;
+                }
+                return wp_tot;
+            };
+            const auto total_wperimeter_A = weighted_perimeter(contour_A);
+            const auto total_wperimeter_B = weighted_perimeter(contour_B);
+            YLOGINFO("total_wperimeter_A = " << total_wperimeter_A);
+            YLOGINFO("total_wperimeter_B = " << total_wperimeter_B);
+        */
+
+            // Walk the contours, creating a sort of triangle strip.
+            //std::set<size_t> used_verts_A;
+            //std::set<size_t> used_verts_B;
+            //size_t i = std::distance( beg_A, p_i );
+            //size_t j = std::distance( beg_B, p_j );
+            double accum_perimeter_A = 0.0;
+            double accum_perimeter_B = 0.0;
+
+            double accum_wperimeter_A = 0.0;
+            double accum_wperimeter_B = 0.0;
+
+            vec3<double> prev_face_N( std::numeric_limits<double>::quiet_NaN(),
+                                    std::numeric_limits<double>::quiet_NaN(),
+                                    std::numeric_limits<double>::quiet_NaN() );
+
+            size_t N_edges_consumed_A = 0;
+            size_t N_edges_consumed_B = 0;
+            std::vector<std::array<size_t, 3>> temp_faces; // Assuming A vertices are first. Zero-based.
+            double temp_total_area = 0;
+
+            for(size_t n = 0; n < (N_A + N_B); ++n){
+                // Figure out which candidate vertices we have.
+                auto p_i_next = std::next(p_i);
+                auto p_j_next = std::next(p_j);
+
+                p_i_next = (p_i_next == end_A) ? beg_A : p_i_next; // Circular wrap.
+                p_j_next = (p_j_next == end_B) ? beg_B : p_j_next; // Circular wrap.
+
+
+                // Of the two candidate triangles, select one based on some criteria.
+                double criteria_w_i_next = std::numeric_limits<double>::infinity();
+                double criteria_w_j_next = std::numeric_limits<double>::infinity();
+
+                double candidate_A_dwperim = 0.0;
+                double candidate_B_dwperim = 0.0;
+
+                if(N_edges_consumed_A < N_A){
+                    // Smallest face area.
+                    // criteria_w_i_next = 0.5 * ((*p_i_next - *p_i).Cross(*p_j - *p_i) ).length();
+
+                    // Alternate back-and-forth between two ~orthogonal metrics.
+                    if( (N_edges_consumed_A + N_edges_consumed_B) % 2 == 0){
+                        // Shortest longest edge length.
+                        const auto edge_length = (*p_i_next - *p_j).length();
+                        criteria_w_i_next = edge_length;
+                    }else{
+                        // Most 'vertical' cross-edge.
+                        criteria_w_i_next = -std::abs( (*p_i_next - *p_j).unit().Dot(ortho_unit_A) );
+                    }
+
+                    // Smallest discrepancy between interior angles.
+                    //bool OK;
+                    //const auto inf = 5000.0;
+                    //const auto angle_a = (OK) ? (*p_i_next - *p_i).angle(*p_j - *p_i, &OK) : inf;
+                    //const auto angle_b = (OK) ? (*p_i - *p_i_next).angle(*p_j - *p_i_next, &OK) : inf;
+                    //const auto angle_c = (OK) ? (*p_i - *p_j).angle(*p_i_next - *p_j, &OK) : inf;
+                    //const auto angle_max = std::max( {angle_a, angle_b, angle_c} );
+                    //const auto angle_min = std::min( {angle_a, angle_b, angle_c} );
+                    //if(OK){
+                    //    criteria_w_i_next = angle_max;
+                    //    //criteria_w_i_next = angle_max - angle_min;
+                    //}else{
+                    //    criteria_w_i_next = - inf;
+                    //}
+
+                    //// Smallest projected area onto the contour plane.
+                    //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_i, *p_i_next, *p_j }} );
+                    ////cop.closed = true;
+                    //const auto proj_cop = cop.Project_Onto_Plane_Orthogonally(plane_A);
+                    //criteria_w_i_next = proj_cop.Perimeter();
+                    ////proj_cop.closed = true;
+                    ////criteria_w_i_next = std::abs( proj_cop.Get_Signed_Area(true) );
+
+                    //// Whichever face is most disaligned from the previous face.
+                    //if(prev_face_N.isfinite()){
+                    //    const auto cand_face_N = (*p_i_next - *p_j).Cross(*p_i - *p_j).unit();
+                    //    const auto agree = - std::abs( cand_face_N.Dot(prev_face_N) );
+                    //    if(cand_face_N.isfinite()) criteria_w_i_next = agree;
+                    //}
+
+
+                    // Pick whichever is lagging in terms of perimeter.
+                    //criteria_w_i_next = accum_perimeter_A + (*p_i_next - *p_i).length() / total_perimeter_A;
+
+                    // Smallest face perimeter.
+                    //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_i, *p_i_next, *p_j }} );
+                    //cop.closed = true;
+                    //criteria_w_i_next = cop.Perimeter();
+
+                    // Penalize adjacent moves that backtrack.
+
+                    // ... pointless because we can't backtrack? ...
+
+                    // Prefer the edge that most closely aligns with the rotational sweep plane (i.e., the hand of a clock
+                    // circulating around the contour).
+                    //const auto p_mid = (*p_i_next + *p_j) * 0.5;
+                    //const auto sweep_line = (p_mid - centre_avg).unit();
+                    //const auto edge_line = (*p_i_next - *p_j).unit();
+                    //criteria_w_i_next = -std::abs( edge_line.Dot(sweep_line) );
+
+                    //// Prefer the edge that makes the smallest rotational advancement.
+                    //const auto proj_p_j = plane_A.Project_Onto_Plane_Orthogonally(*p_j);
+                    //const auto angle = (*p_i_next - centroid_A).angle(proj_p_j - centroid_A);
+                    //const auto orien = (*p_i_next - centroid_A).Cross(proj_p_j - centroid_A).Dot(ortho_unit_A);
+                    //const double sign = (orien < 0) ? 1.0 : -1.0;
+                    //criteria_w_i_next = sign * angle;
+
+                    //Prefer the edge that 'consumes' the minimal arc length.
+                    //const auto hand_a = plane_A.Project_Onto_Plane_Orthogonally(*p_i_next) - plane_A.Project_Onto_Plane_Orthogonally(*p_j);
+                    //criteria_w_i_next = hand_a.length();
+
+                    // Prefer the edge that most closely aligns with the local normal vector.
+                    //
+                    // Ideally considering only the most locally curved contour. TODO.
+                    ////const auto local_norm = (*p_i_next - *p_i).Cross(ortho_unit_A).unit();
+                    //const auto local_norm = (*p_j_next - *p_j).Cross(ortho_unit_A).unit();
+                    //const auto face_norm = (*p_i_next - *p_j).Cross(*p_i - *p_j).unit();
+                    ////criteria_w_i_next = 0.5 * ((*p_i_next - *p_i).Cross(*p_j - *p_i) ).length();
+                    ////const auto edge_line = (*p_i_next - *p_j).unit();
+                    //criteria_w_i_next = local_norm.Dot(face_norm) * -1.0;
+
+                    //// Ratio of triangle area to circumcircle (actually circumsphere) area.
+                    //const auto a = *p_i_next - *p_j;
+                    //const auto b = *p_i - *p_j;
+                    //const auto face_area = 0.5 * a.Cross(b).length();
+                    //if(face_area == 0.0){
+                    //    criteria_w_i_next = 0.0; // Acceptable, but won't beat any legitimate candidates.
+                    //}else{
+                    //    const auto circum_r = (a.length() * b.length() * (a-b).length()) / (4.0 * face_area );
+                    //    const auto circum_a = pi * circum_r * circum_r;
+                    //    criteria_w_i_next = - face_area / circum_a;
+                    //}
+
+                    //// Weighted perimeter.
+                    //const auto beg = std::begin(contour_A.points);
+                    //const auto end = std::end(contour_A.points);
+                    //const auto last = std::prev(end);
+                    //const auto p_i_prev = (p_i == beg) ? last : std::prev(p_i);
+
+                    //const auto curvature = est_curvature(*p_i_prev, *p_i, *p_i_next);
+                    //const auto dperim = p_i->distance(*p_i_prev);
+                    //const auto dwperim = dperim * curvature;
+                    //const auto d_wperimeter = (accum_wperimeter_A + dwperim) / total_wperimeter_A;
+                    //candidate_A_dwperim = dwperim;
+                    //criteria_w_i_next = - d_wperimeter;
+                }
+                if(N_edges_consumed_B < N_B){
+                    // Smallest face area.
+                    //criteria_w_j_next = 0.5 * ((*p_j_next - *p_j).Cross(*p_i - *p_j) ).length();
+
+                    // Alternate back-and-forth between two ~orthogonal metrics.
+                    if( (N_edges_consumed_A + N_edges_consumed_B) % 2 == 0){
+                        // Shortest longest edge length.
+                        const auto edge_length = (*p_j_next - *p_i).length();
+                        criteria_w_j_next = edge_length;
+                    }else{
+                        // Most 'vertical' cross-edge.
+                        criteria_w_j_next = -std::abs( (*p_j_next - *p_i).unit().Dot(ortho_unit_B) );
+                    }
+
+                    // Smallest discrepancy between interior angles.
+                    //bool OK = true;
+                    //const auto inf = 5000.0;
+                    //const auto angle_a = (OK) ? (*p_j_next - *p_j).angle(*p_i - *p_j, &OK) : inf;
+                    //const auto angle_b = (OK) ? (*p_j - *p_j_next).angle(*p_i - *p_j_next, &OK) : inf;
+                    //const auto angle_c = (OK) ? (*p_j - *p_i).angle(*p_j_next - *p_i, &OK) : inf;
+                    //const auto angle_max = std::max( {angle_a, angle_b, angle_c} );
+                    //const auto angle_min = std::min( {angle_a, angle_b, angle_c} );
+                    //if(OK){
+                    //    criteria_w_j_next = angle_max;
+                    //    //criteria_w_j_next = angle_max - angle_min;
+                    //}else{
+                    //    criteria_w_j_next = - inf;
+                    //}
+
+                    //// Smallest projected area onto the contour plane.
+                    //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_j, *p_j_next, *p_i }} );
+                    ////cop.closed = true;
+                    //const auto proj_cop = cop.Project_Onto_Plane_Orthogonally(plane_B);
+                    //criteria_w_j_next = proj_cop.Perimeter();
+                    ////proj_cop.closed = true;
+                    ////criteria_w_j_next = std::abs( proj_cop.Get_Signed_Area(true) );
+
+                    //// Whichever face is most disaligned from the previous face.
+                    //if(prev_face_N.isfinite()){
+                    //    const auto cand_face_N = (*p_j_next - *p_j).Cross(*p_i - *p_j).unit();
+                    //    const auto agree = - std::abs( cand_face_N.Dot(prev_face_N) );
+                    //    if(cand_face_N.isfinite()) criteria_w_j_next = agree;
+                    //}
+
+                    // Pick whichever is lagging in terms of perimeter.
+                    //criteria_w_j_next = accum_perimeter_B + (*p_j_next - *p_j).length() / total_perimeter_B;
+
+                    // Smallest face perimeter.
+                    //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_j, *p_j_next, *p_i }} );
+                    //cop.closed = true;
+                    //criteria_w_j_next = cop.Perimeter();
+
+                    // Penalize adjacent moves that backtrack.
+
+                    // ... pointless because we can't backtrack? ...
+
+                    // Prefer the edge that most closely aligns with the rotational sweep plane (i.e., the hand of a clock
+                    // circulating around the contour).
+                    //const auto p_mid = (*p_j_next + *p_i) * 0.5;
+                    //const auto sweep_line = (p_mid - centre_avg).unit();
+                    //const auto edge_line = (*p_j_next - *p_i).unit();
+                    //criteria_w_j_next = -std::abs( edge_line.Dot(sweep_line) );
+
+                    //// Prefer the edge that makes the smallest rotational advancement.
+                    //const auto proj_p_i = plane_B.Project_Onto_Plane_Orthogonally(*p_i);
+                    //const auto angle = (*p_j_next - centroid_B).angle(proj_p_i - centroid_B);
+                    //const auto orien = (*p_j_next - centroid_B).Cross(proj_p_i - centroid_B).Dot(ortho_unit_B);
+                    //const double sign = (orien < 0) ? 1.0 : -1.0;
+                    //criteria_w_j_next = sign * angle;
+
+                    //Prefer the edge that 'consumes' the minimal arc length.
+                    //const auto hand_a = plane_A.Project_Onto_Plane_Orthogonally(*p_j_next) - plane_A.Project_Onto_Plane_Orthogonally(*p_i);
+                    //criteria_w_j_next = hand_a.length();
+
+                    //// Prefer the edge that most closely aligns with the local normal vector.
+                    ////
+                    //// Ideally considering only the most locally curved contour. TODO.
+                    ////const auto local_norm = (*p_j_next - *p_j).Cross(ortho_unit_A).unit();
+                    //const auto local_norm = (*p_i_next - *p_i).Cross(ortho_unit_A).unit();
+                    //const auto face_norm = (*p_j_next - *p_j).Cross(*p_i - *p_j).unit();
+                    ////criteria_w_i_next = 0.5 * ((*p_i_next - *p_i).Cross(*p_j - *p_i) ).length();
+                    ////const auto edge_line = (*p_i_next - *p_j).unit();
+                    //criteria_w_j_next = local_norm.Dot(face_norm) * -1.0;
+
+                    //// Ratio of triangle area to circumcircle (actually circumsphere) area.
+                    //const auto a = *p_j_next - *p_j;
+                    //const auto b = *p_i - *p_j;
+                    //const auto face_area = 0.5 * a.Cross(b).length();
+                    //if(face_area == 0.0){
+                    //    criteria_w_j_next = 0.0; // Acceptable, but won't beat any legitimate candidates.
+                    //}else{
+                    //    const auto circum_r = (a.length() * b.length() * (a-b).length()) / (4.0 * face_area );
+                    //    const auto circum_a = pi * circum_r * circum_r;
+                    //    criteria_w_j_next = - face_area / circum_a;
+                    //}
+
+                    //// Weighted perimeter.
+                    //const auto beg = std::begin(contour_B.points);
+                    //const auto end = std::end(contour_B.points);
+                    //const auto last = std::prev(end);
+                    //const auto p_j_prev = (p_j == beg) ? last : std::prev(p_j);
+
+                    //const auto curvature = est_curvature(*p_j_prev, *p_j, *p_j_next);
+                    //const auto dperim = p_j->distance(*p_j_prev);
+                    //const auto dwperim = dperim * curvature;
+                    //const auto d_wperimeter = (accum_wperimeter_B + dwperim) / total_wperimeter_B;
+                    //candidate_B_dwperim = dwperim;
+                    //criteria_w_j_next = d_wperimeter;
+                }
+
+                        // returns face area of triangle denoted by three vertex coordinates
+                const auto get_face_area = []( const vec3<double> &A,
+                                        const vec3<double> &B,
+                                        const vec3<double> &C ) -> double {
+                    const auto a = A - C;
+                    const auto b = B - C;
+                    const auto face_area = 0.5 * a.Cross(b).length();
+                    return face_area;
+                };
+                const auto accept_i_next = [&](){
+                    // Accept the i-next move.
+                    if(N_A < N_edges_consumed_A) throw std::logic_error("Looped contour A");
+
+                    temp_total_area += get_face_area(*p_i_next, *p_j, *p_i);
+
+                    if(N_edges_consumed_A % 2 == 0){
+                        prev_face_N = (*p_i_next - *p_j).Cross(*p_i - *p_j).unit();
+                    }else{
+                        prev_face_N.x = std::numeric_limits<double>::infinity();
+                    }
+
+                    const auto v_a = static_cast<size_t>( std::distance(beg_A, p_i) );
+                    const auto v_b = static_cast<size_t>( std::distance(beg_A, p_i_next) );
+                    const auto v_c = static_cast<size_t>( N_A + std::distance(beg_B, p_j) );
+                    temp_faces.emplace_back( std::array<size_t, 3>{{ v_a, v_b, v_c }} );
+                    accum_perimeter_A += (*p_i_next - *p_i).length();
+                    accum_wperimeter_A += candidate_A_dwperim;
+                    N_edges_consumed_A += 1;
+                    if(N_edges_consumed_A <= N_A) p_i = p_i_next;
+                };
+                const auto accept_j_next = [&](){
+                    // Accept the j-next move.
+                    if(N_B < N_edges_consumed_B) throw std::logic_error("Looped contour B");
+
+                    temp_total_area += get_face_area(*p_j_next, *p_j, *p_i);
+
+                    if(N_edges_consumed_A % 2 == 0){
+                        prev_face_N = (*p_j_next - *p_j).Cross(*p_i - *p_j).unit();
+                    }else{
+                        prev_face_N.x = std::numeric_limits<double>::infinity();
+                    }
+
+                    const auto v_a = static_cast<size_t>( std::distance(beg_A, p_i) );
+                    const auto v_b = static_cast<size_t>( N_A + std::distance(beg_B, p_j_next) );
+                    const auto v_c = static_cast<size_t>( N_A + std::distance(beg_B, p_j) );
+                    temp_faces.emplace_back( std::array<size_t, 3>{{ v_a, v_b, v_c }} );
+                    accum_perimeter_B += (*p_j_next - *p_j).length();
+                    accum_wperimeter_B += candidate_B_dwperim;
+                    N_edges_consumed_B += 1;
+                    if(N_edges_consumed_B <= N_B) p_j = p_j_next;
+                };
+
+                const bool A_is_valid = std::isfinite(criteria_w_i_next);
+                const bool B_is_valid = std::isfinite(criteria_w_j_next);
+                if(!A_is_valid && !B_is_valid){
+        YLOGWARN("Terminated meshing early. Mesh may be incomplete.");
+        //            throw std::logic_error("Terminated meshing early. Cannot continue.");
+                    // Note: Could be due to:
+                    //       - Non-finite vertex in input.
+                    //       - Invalid number of loops in the implementation above.
+                    //       - (Possibly) duplicate vertices??
+                    //       - Possibly something else.
+                }else if( A_is_valid && !B_is_valid){
+                    accept_i_next();
+                }else if( !A_is_valid && B_is_valid){
+                    accept_j_next();
+                }else if(criteria_w_i_next < criteria_w_j_next){
+                    accept_i_next();
+                }else{
+                    accept_j_next();
+                }
             }
 
-            // Smallest discrepancy between interior angles.
-            //bool OK = true;
-            //const auto inf = 5000.0;
-            //const auto angle_a = (OK) ? (*p_j_next - *p_j).angle(*p_i - *p_j, &OK) : inf;
-            //const auto angle_b = (OK) ? (*p_j - *p_j_next).angle(*p_i - *p_j_next, &OK) : inf;
-            //const auto angle_c = (OK) ? (*p_j - *p_i).angle(*p_j_next - *p_i, &OK) : inf;
-            //const auto angle_max = std::max( {angle_a, angle_b, angle_c} );
-            //const auto angle_min = std::min( {angle_a, angle_b, angle_c} );
-            //if(OK){
-            //    criteria_w_j_next = angle_max;
-            //    //criteria_w_j_next = angle_max - angle_min;
-            //}else{
-            //    criteria_w_j_next = - inf;
-            //}
+        //YLOGINFO("Completed meshing with N_faces = " << faces.size() << " where N_A + N_B = " << (N_A + N_B));
 
-            //// Smallest projected area onto the contour plane.
-            //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_j, *p_j_next, *p_i }} );
-            ////cop.closed = true;
-            //const auto proj_cop = cop.Project_Onto_Plane_Orthogonally(plane_B);
-            //criteria_w_j_next = proj_cop.Perimeter();
-            ////proj_cop.closed = true;
-            ////criteria_w_j_next = std::abs( proj_cop.Get_Signed_Area(true) );
+            YLOGINFO("Temp total area: " << temp_total_area);
 
-            //// Whichever face is most disaligned from the previous face.
-            //if(prev_face_N.isfinite()){
-            //    const auto cand_face_N = (*p_j_next - *p_j).Cross(*p_i - *p_j).unit();
-            //    const auto agree = - std::abs( cand_face_N.Dot(prev_face_N) );
-            //    if(cand_face_N.isfinite()) criteria_w_j_next = agree;
-            //}
-
-            // Pick whichever is lagging in terms of perimeter.
-            //criteria_w_j_next = accum_perimeter_B + (*p_j_next - *p_j).length() / total_perimeter_B;
-
-            // Smallest face perimeter.
-            //contour_of_points<double> cop( std::list<vec3<double>>{{ *p_j, *p_j_next, *p_i }} );
-            //cop.closed = true;
-            //criteria_w_j_next = cop.Perimeter();
-
-            // Penalize adjacent moves that backtrack.
-
-            // ... pointless because we can't backtrack? ...
-
-            // Prefer the edge that most closely aligns with the rotational sweep plane (i.e., the hand of a clock
-            // circulating around the contour).
-            //const auto p_mid = (*p_j_next + *p_i) * 0.5;
-            //const auto sweep_line = (p_mid - centre_avg).unit();
-            //const auto edge_line = (*p_j_next - *p_i).unit();
-            //criteria_w_j_next = -std::abs( edge_line.Dot(sweep_line) );
-
-            //// Prefer the edge that makes the smallest rotational advancement.
-            //const auto proj_p_i = plane_B.Project_Onto_Plane_Orthogonally(*p_i);
-            //const auto angle = (*p_j_next - centroid_B).angle(proj_p_i - centroid_B);
-            //const auto orien = (*p_j_next - centroid_B).Cross(proj_p_i - centroid_B).Dot(ortho_unit_B);
-            //const double sign = (orien < 0) ? 1.0 : -1.0;
-            //criteria_w_j_next = sign * angle;
-
-            //Prefer the edge that 'consumes' the minimal arc length.
-            //const auto hand_a = plane_A.Project_Onto_Plane_Orthogonally(*p_j_next) - plane_A.Project_Onto_Plane_Orthogonally(*p_i);
-            //criteria_w_j_next = hand_a.length();
-
-            //// Prefer the edge that most closely aligns with the local normal vector.
-            ////
-            //// Ideally considering only the most locally curved contour. TODO.
-            ////const auto local_norm = (*p_j_next - *p_j).Cross(ortho_unit_A).unit();
-            //const auto local_norm = (*p_i_next - *p_i).Cross(ortho_unit_A).unit();
-            //const auto face_norm = (*p_j_next - *p_j).Cross(*p_i - *p_j).unit();
-            ////criteria_w_i_next = 0.5 * ((*p_i_next - *p_i).Cross(*p_j - *p_i) ).length();
-            ////const auto edge_line = (*p_i_next - *p_j).unit();
-            //criteria_w_j_next = local_norm.Dot(face_norm) * -1.0;
-
-            //// Ratio of triangle area to circumcircle (actually circumsphere) area.
-            //const auto a = *p_j_next - *p_j;
-            //const auto b = *p_i - *p_j;
-            //const auto face_area = 0.5 * a.Cross(b).length();
-            //if(face_area == 0.0){
-            //    criteria_w_j_next = 0.0; // Acceptable, but won't beat any legitimate candidates.
-            //}else{
-            //    const auto circum_r = (a.length() * b.length() * (a-b).length()) / (4.0 * face_area );
-            //    const auto circum_a = pi * circum_r * circum_r;
-            //    criteria_w_j_next = - face_area / circum_a;
-            //}
-
-            //// Weighted perimeter.
-            //const auto beg = std::begin(contour_B.points);
-            //const auto end = std::end(contour_B.points);
-            //const auto last = std::prev(end);
-            //const auto p_j_prev = (p_j == beg) ? last : std::prev(p_j);
-
-            //const auto curvature = est_curvature(*p_j_prev, *p_j, *p_j_next);
-            //const auto dperim = p_j->distance(*p_j_prev);
-            //const auto dwperim = dperim * curvature;
-            //const auto d_wperimeter = (accum_wperimeter_B + dwperim) / total_wperimeter_B;
-            //candidate_B_dwperim = dwperim;
-            //criteria_w_j_next = d_wperimeter;
-        }
-
-        const auto accept_i_next = [&](){
-            // Accept the i-next move.
-            if(N_A < N_edges_consumed_A) throw std::logic_error("Looped contour A");
-
-            if(N_edges_consumed_A % 2 == 0){
-                prev_face_N = (*p_i_next - *p_j).Cross(*p_i - *p_j).unit();
-            }else{
-                prev_face_N.x = std::numeric_limits<double>::infinity();
+            // now check if area is minimized by comparing with current selected faces
+            if (!std::isfinite(total_face_area) || total_face_area >= temp_total_area) {
+                total_face_area = temp_total_area;
+                faces = temp_faces;
             }
-
-            const auto v_a = static_cast<size_t>( std::distance(beg_A, p_i) );
-            const auto v_b = static_cast<size_t>( std::distance(beg_A, p_i_next) );
-            const auto v_c = static_cast<size_t>( N_A + std::distance(beg_B, p_j) );
-            faces.emplace_back( std::array<size_t, 3>{{ v_a, v_b, v_c }} );
-            accum_perimeter_A += (*p_i_next - *p_i).length();
-            accum_wperimeter_A += candidate_A_dwperim;
-            N_edges_consumed_A += 1;
-            if(N_edges_consumed_A <= N_A) p_i = p_i_next;
-        };
-        const auto accept_j_next = [&](){
-            // Accept the j-next move.
-            if(N_B < N_edges_consumed_B) throw std::logic_error("Looped contour B");
-
-            if(N_edges_consumed_A % 2 == 0){
-                prev_face_N = (*p_j_next - *p_j).Cross(*p_i - *p_j).unit();
-            }else{
-                prev_face_N.x = std::numeric_limits<double>::infinity();
-            }
-
-            const auto v_a = static_cast<size_t>( std::distance(beg_A, p_i) );
-            const auto v_b = static_cast<size_t>( N_A + std::distance(beg_B, p_j_next) );
-            const auto v_c = static_cast<size_t>( N_A + std::distance(beg_B, p_j) );
-            faces.emplace_back( std::array<size_t, 3>{{ v_a, v_b, v_c }} );
-            accum_perimeter_B += (*p_j_next - *p_j).length();
-            accum_wperimeter_B += candidate_B_dwperim;
-            N_edges_consumed_B += 1;
-            if(N_edges_consumed_B <= N_B) p_j = p_j_next;
-        };
-
-        const bool A_is_valid = std::isfinite(criteria_w_i_next);
-        const bool B_is_valid = std::isfinite(criteria_w_j_next);
-        if(!A_is_valid && !B_is_valid){
-YLOGWARN("Terminated meshing early. Mesh may be incomplete.");
-//            throw std::logic_error("Terminated meshing early. Cannot continue.");
-            // Note: Could be due to:
-            //       - Non-finite vertex in input.
-            //       - Invalid number of loops in the implementation above.
-            //       - (Possibly) duplicate vertices??
-            //       - Possibly something else.
-        }else if( A_is_valid && !B_is_valid){
-            accept_i_next();
-        }else if( !A_is_valid && B_is_valid){
-            accept_j_next();
-        }else if(criteria_w_i_next < criteria_w_j_next){
-            accept_i_next();
-        }else{
-            accept_j_next();
         }
     }
-    //YLOGINFO("Completed meshing with N_faces = " << faces.size() << " where N_A + N_B = " << (N_A + N_B));
 
 
 /*

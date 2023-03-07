@@ -1,0 +1,71 @@
+#!/usr/bin/env -S dicomautomaton_dispatcher -v
+
+# This script provides examples of the GenerateMeshes operation.
+
+# Spatial resolutions along x, y, and z axes.
+res = "0.25, 0.25, 0.75";
+
+DeleteMeshes(
+MeshSelection = 'all',
+){};
+
+DeleteContours(
+NormalizedROILabelRegex = '.*',
+ROILabelRegex = '.*',
+){};
+
+
+DeleteImages(
+ImageSelection = 'all',
+){};
+
+# A simple asymmetric axis-aligned box.
+GenerateMeshes(
+    Resolution = res,
+    MeshLabel = 'box',
+    Objects = 'aa_box(1.0, 2.0, 4.0)',
+){};
+
+MakeMeshesManifold(
+MeshLabel = 'manifold large sphere',
+MeshSelection = 'last', # large sphere
+){};
+
+GenerateSyntheticImages(
+NumberOfImages = '256',
+NumberOfRows = '64', # 16
+NumberOfColumns = '64',
+NumberOfChannels = '1',
+SliceThickness = '2',
+SpacingBetweenSlices = '2',
+VoxelWidth = '1.0',
+VoxelHeight = '1.0',
+ImageAnchor = '-14.0, -14.0, -14.0',
+ImagePosition = '0.0, 0.0, 0.0',
+ImageOrientationColumn = '1.0, 0.0, 0.0',
+ImageOrientationRow = '0.0, 1.0, 0.0',
+InstanceNumber = '1',
+AcquisitionNumber = '1',
+VoxelValue = '0.0',
+StipleValue = 'nan',
+# Metadata = '',
+){};
+
+ConvertMeshesToContours(
+ROILabel = 'sphere contours',
+MeshSelection = 'last', # manifold large sphere
+ImageSelection = 'last',
+){};
+
+ConvertContoursToMeshes(
+NormalizedROILabelRegex = '.*',
+ROILabelRegex = '.*',
+MeshLabel = 'unspecified',
+Method = 'direct',
+){};
+
+
+CompareMeshes(
+MeshSelection1 = '#-0',
+MeshSelection2 = '#-1',
+){};

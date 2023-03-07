@@ -480,15 +480,18 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             for(auto &pcs : pairings){
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
-                //YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
+                YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
+                    YLOGINFO("Closing hole in floor");
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
 
                 }else if( (N_upper == 0) && (N_lower == 1) ){
+                    YLOGINFO("Closing hole in roof");
                     for(const auto &cop_refw : pcs.lower) close_hole_in_roof(cop_refw);
 
                 }else if( (N_upper == 1) && (N_lower == 1) ){
+                    YLOGINFO("Estimating contour correspondence with 1 upper and 1 lower.");
                     auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
 
                     const auto old_face_count = amesh.vertices.size();
@@ -501,11 +504,11 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                     }
                 }else{
-                    //YLOGINFO("Performing N-to-N meshing..");
+                    YLOGINFO("Performing N-to-N meshing..");
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
                     auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
-                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
+                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower);
 
     /*
     // Leaving this here for future debugging, for which it will no-doubt be needed...
