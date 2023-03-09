@@ -25,17 +25,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-declare -a shapes=("Sphere(10)" "Sphere(5)" "Sphere(7)")
-# declare -a shapes=("Sphere(10)" ")
+declare -a shapes=("Sphere(10)" "Sphere(5)" "Sphere(7)" "aa_box(1.0,2.0,4.0)")
+default_res="0.25,0.25,0.25"
+declare -a resolutions=("$default_res" "$default_res" "$default_res" "0.25,0.25,0.75")
 
-printf "| %-15s | %-13s | %-13s | %-15s | %-15s | %-10s |\n" Shape "Hausdorff 1" "Hausdorff 2" "Surface Area 1" "Aurface Area 2" "Area Diff"
-for shape in "${shapes[@]}"
+printf "| %-15s | %-13s | %-13s | %-15s | %-15s | %-10s |\n" Shape "Hausdorff 1" "Hausdorff 2" "Surface Area 1" "Surface Area 2" "Area Diff"
+for i in ${!shapes[@]}
 do
+  shape=${shapes[$i]}
+  res=${resolutions[$i]}
   # echo "Computing differences for $shape"
   OUTPUT="$(dicomautomaton_dispatcher \
     -v \
     -o GenerateMeshes \
-      -p resolution="0.25, 0.25, 0.25" \
+      -p resolution=$res \
       -p MeshLabel="original" \
       -p Objects="$shape" \
     -o GenerateSyntheticImages \
