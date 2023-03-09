@@ -24,16 +24,42 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+tri_force_shape="
+subtract(){
+  join(){
+    plane(0,0,0, 1,1,0, 10);
+    plane(0,0,0, 0,1,1, 10);
+    plane(0,0,0, 1,0,1, 10);
 
-declare -a shapes=("Sphere(10)" "Sphere(5)" "Sphere(7)" "aa_box(1.0,2.0,4.0)")
+    plane(10,10,10, -1,-1,-0, 10);
+    plane(10,10,10, -0,-1,-1, 10);
+    plane(10,10,10, -1,-0,-1, 10);
+  };
+
+  join(){
+    plane(0,0,0, 1,2,0, 10);
+    plane(0,0,0, 0,1,2, 10);
+    plane(0,0,0, 2,0,1, 10);  
+
+    plane(10,10,10, -2,-1,-0, 10);
+    plane(10,10,10, -0,-2,-1, 10);
+    plane(10,10,10, -1,-0,-2, 10);
+  };
+};
+"
+
 default_res="0.25,0.25,0.25"
-declare -a resolutions=("$default_res" "$default_res" "$default_res" "0.25,0.25,0.75")
+
+declare -a shape_labels=("Sphere(10)" "Sphere(5)" "Sphere(7)" "aa_box(1.0,2.0,4.0)" "tri-force")
+declare -a shapes=("Sphere(10)" "Sphere(5)" "Sphere(7)" "aa_box(1.0,2.0,4.0)" "$tri_force_shape")
+declare -a resolutions=("$default_res" "$default_res" "$default_res" "0.25,0.25,0.75" "0.25,0.25,0.75")
 
 printf "| %-15s | %-13s | %-13s | %-15s | %-15s | %-10s |\n" Shape "Hausdorff 1" "Hausdorff 2" "Surface Area 1" "Surface Area 2" "Area Diff"
 for i in ${!shapes[@]}
 do
   shape=${shapes[$i]}
   res=${resolutions[$i]}
+  shape_label=${shape_labels[$i]}
   # echo "Computing differences for $shape"
   OUTPUT="$(dicomautomaton_dispatcher \
     -v \
@@ -91,7 +117,7 @@ do
   # echo "$SA1"
   # echo "$SA2"
   # echo "$SA_DIFF"
-  printf "| %-15s | %-13.3f | %-13.3f | %-15.3f | %-15.3f | %-10.3f |\n" $shape $HD1 $HD2 $SA1 $SA2 $SA_DIFF
+  printf "| %-15s | %-13.3f | %-13.3f | %-15.3f | %-15.3f | %-10.3f |\n" $shape_label $HD1 $HD2 $SA1 $SA2 $SA_DIFF
 
   # echo "Finished computing differences for $shape"
 done
