@@ -130,8 +130,6 @@ bool CompareMeshes(Drover &DICOM_data,
 
         }
 
-    FUNCINFO("vol1 = "<<abs(volume1)<<".")
-
 
     faces = &(mesh2->meshes.faces);
     for (auto & fv : *faces){
@@ -145,14 +143,13 @@ bool CompareMeshes(Drover &DICOM_data,
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
         }
 
-    FUNCINFO("vol2 = "<<abs(volume2)<<".")
-    FUNCINFO("diffVol = "<<abs(abs(volume1)-abs(volume2)))
-
     FUNCINFO("HAUSDORFF DISTANCE: " << max_distance << " or " << second_max_distance);
 
     // print out surface areas
     FUNCINFO("SURFACE AREA: First mesh = " << mesh1->meshes.surface_area() << ", second mesh = " << mesh2->meshes.surface_area());
-    FUNCINFO("SURFACE AREA difference: " << mesh1->meshes.surface_area() - mesh2->meshes.surface_area());
+    FUNCINFO("SURFACE AREA (%) difference: " << (mesh1->meshes.surface_area() - mesh2->meshes.surface_area())*100/mesh1->meshes.surface_area());
+    FUNCINFO("VOLUME: First mesh = " <<abs(volume1) << ", second mesh = " << abs(volume2));
+    FUNCINFO("VOLUME (%) difference: " << (abs(abs(volume1)-abs(volume2)))*100/abs(volume1));
 
     return true;
 }
