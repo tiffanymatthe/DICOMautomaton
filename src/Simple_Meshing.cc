@@ -34,6 +34,99 @@
 
 #include "Simple_Meshing.h"
 
+/*
+ * Class to represent a single node in a vertex
+ */
+class node {
+    public:
+        // Indices of A and B that this node represents
+        size_t iA, iB;
+        // Weight of choosing the next vertex to be on A/B
+        // In our case this corresponds to the area of (iA, iB, iA+1) 
+        // or (iA, iB, iB+1) respectively
+        unsigned int wA, wB;
+
+        node(size_t ia, size_t ib, 
+            vec3<double>& point_A,
+            vec3<double>& point_B,
+            vec3<double>& point_A_plus_1,
+            vec3<double>& point_B_plus_1){
+            iA = ia; iB = ib;
+            const vec3<double> ab = point_A - point_B;
+            // Weights are surface area of potential next faces
+            wA = 0.5 * ab.Cross(point_B - point_A_plus_1).length();
+            wB = 0.5 * ab.Cross(point_A - point_B_plus_1).length();
+
+        }
+};
+
+
+// Method taken from here: 
+// https://www.cs.jhu.edu/~misha/Fall13b/Papers/Fuchs77.pdf
+std::vector< std::array<size_t, 3> >
+Tile_Contours_Graph(
+        std::reference_wrapper<contour_of_points<double>> A,
+        std::reference_wrapper<contour_of_points<double>> B ){
+
+    contour_of_points<double> contour_A = A.get();
+    contour_of_points<double> contour_B = B.get();
+
+    const auto N_A = contour_A.points.size();
+    const auto N_B = contour_B.points.size();
+    if( N_A == 0 ){
+        throw std::invalid_argument("Contour A contains no vertices. Cannot continue.");
+    }
+    if( N_B == 0 ){
+        throw std::invalid_argument("Contour B contains no vertices. Cannot continue.");
+    }
+
+    // Determine contour orientations. Single-vertex contours can take any orientation, so use a reasonable default.
+    auto ortho_unit_A = vec3<double>(0.0, 0.0, 1.0);
+    auto ortho_unit_B = vec3<double>(0.0, 0.0, 1.0);
+    try{
+        ortho_unit_A = contour_A.Estimate_Planar_Normal();
+    }catch(const std::exception &){}
+    try{
+        ortho_unit_B = contour_B.Estimate_Planar_Normal();
+    }catch(const std::exception &){}
+
+    // Ensure the contours have the same orientation.
+    if(ortho_unit_A.Dot(ortho_unit_B) <= 0.0){
+        // Handle special cases
+        if( (N_A == 1) && (N_B != 1) ){
+            ortho_unit_A = ortho_unit_B;
+        }else if( (N_A != 1) && (N_B == 1) ){
+            ortho_unit_B = ortho_unit_A;
+
+        // Otherwise, flip one of the contours, recurse, and adjust the face labels to point to the actual vertex
+        // layout.
+        //
+        // Note: This effectively ignores contour orientation altogether.
+        }else{
+            YLOGWARN("Ignoring adjacent contours with opposite orientations. Recursing..");
+            std::reverse( std::begin(contour_B.points), std::end(contour_B.points) );
+            auto faces = Tile_Contours_Graph(A, std::ref(contour_B) );
+
+            for(auto &face_arr: faces){
+                for(auto &v_i : face_arr){
+                    if(N_A <= v_i) v_i = N_A + (N_B - 1) - (v_i - N_A);
+                }
+            }
+            return faces;
+        }
+    }
+
+    /* node graph[N_A][N_B]; */
+
+    for(size_t i = 0; i < N_A; ++i){
+        for(size_t j = 0; j < N_B; ++j){
+            
+        }
+    }
+
+
+    
+}
 
 // Low-level routine that joins the vertices of two contours.
 // Returns a list of faces where the vertex indices refer to A followed by B.
