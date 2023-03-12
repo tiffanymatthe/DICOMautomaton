@@ -5,6 +5,7 @@
 #include <functional>
 #include <iterator>
 #include <list>
+#include <tuple>
 #include <map>
 #include <memory>
 #include <set> 
@@ -109,6 +110,26 @@ bool CompareMeshes(Drover &DICOM_data,
         }
         second_max_distance = std::max(min_distance, second_max_distance);
     }
+
+    double sumx = 0, sumy = 0, sumz = 0;
+    for (auto & vertex : mesh1->meshes.vertices) {
+        sumx += vertex.x;
+        sumy += vertex.y;
+        sumz += vertex.z;
+    }
+
+    vec3 centroid1 = vec3(sumx/size(mesh1->meshes.vertices) , sumy/size(mesh1->meshes.vertices) , sumz/size(mesh1->meshes.vertices));
+
+    sumx =0, sumy=0 , sumz = 0;
+    for (auto & vertex : mesh2->meshes.vertices) {
+        sumx += vertex.x;
+        sumy += vertex.y;
+        sumz += vertex.z;
+    }
+
+    vec3 centroid2 = vec3(sumx/size(mesh1->meshes.vertices) , sumy/size(mesh1->meshes.vertices) , sumz/size(mesh1->meshes.vertices));
+
+    const double centroid_shift = sqrt(pow((centroid2.x-centroid1.x),2) + pow((centroid2.y-centroid1.y),2) + pow((centroid2.y-centroid1.y),2));
     
     mesh1->meshes.convert_to_triangles();
     mesh2->meshes.convert_to_triangles();
@@ -138,10 +159,12 @@ bool CompareMeshes(Drover &DICOM_data,
         const auto P_B = mesh2->meshes.vertices.at( fv[1] );
         const auto P_C = mesh2->meshes.vertices.at( fv[2] );
 
-        volume2 += (-P_C.x*P_B.y*P_A.z + P_B.x*P_C.y*P_A.z + 
+        volume2 += (-P_C.x*P_B.y*P_A.z + P_B.x*P_C.y*P_A.z + -
                 P_C.x*P_A.y*P_B.z - P_A.x*P_C.y*P_B.z - 
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
         }
+
+    
 
     FUNCINFO("HAUSDORFF DISTANCE: " << max_distance << " or " << second_max_distance);
 
@@ -150,6 +173,9 @@ bool CompareMeshes(Drover &DICOM_data,
     FUNCINFO("SURFACE AREA (%) difference: " << (mesh1->meshes.surface_area() - mesh2->meshes.surface_area())*100/mesh1->meshes.surface_area());
     FUNCINFO("VOLUME: First mesh = " <<abs(volume1) << ", second mesh = " << abs(volume2));
     FUNCINFO("VOLUME (%) difference: " << (abs(abs(volume1)-abs(volume2)))*100/abs(volume1));
+    FUNCINFO("CENTROID: First mesh = " << centroid1.x << "," << centroid1.y << "," << centroid1.z)
+    FUNCINFO("CENTROID: Second mesh = " << centroid2.x << "," << centroid2.y << "," << centroid2.z)
+    FUNCINFO("Centroid Shift = " << centroid_shift)
 
     return true;
 }
