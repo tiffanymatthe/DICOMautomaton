@@ -47,10 +47,10 @@ class node {
         unsigned int wA, wB;
 
         node(size_t ia, size_t ib, 
-            vec3<double>& point_A,
-            vec3<double>& point_B,
-            vec3<double>& point_A_plus_1,
-            vec3<double>& point_B_plus_1){
+                vec3<double>& point_A,
+                vec3<double>& point_B,
+                vec3<double>& point_A_plus_1,
+                vec3<double>& point_B_plus_1){
             iA = ia; iB = ib;
             const vec3<double> ab = point_A - point_B;
             // Weights are surface area of potential next faces
@@ -116,15 +116,66 @@ Tile_Contours_Graph(
         }
     }
 
-    /* node graph[N_A][N_B]; */
+    /***************************************************************************
+     * Graph theory search
+     **************************************************************************/
 
-    for(size_t i = 0; i < N_A; ++i){
-        for(size_t j = 0; j < N_B; ++j){
-            
+    std::vector<std::vector<node>> nodes;
+
+
+    // Keep track of where we are looping over points
+    auto iter_A = std::begin(contour_A.points);
+    auto iter_B = std::begin(contour_B.points);
+
+    // const convenience iterators
+    const auto begin_A = std::begin(contour_A.points);
+    const auto begin_B = std::begin(contour_B.points);
+    const auto end_A = std::end(contour_A.points);
+    const auto end_B = std::end(contour_B.points);
+
+    auto p_i_next = *iter_A;
+    // We repeat over A twice, since to search the graph we need to search repeats
+    for(size_t i = 0; i < 2 * N_A; ++i, iter_A = std::next(iter_A)){
+
+        auto p_i = p_i_next;
+        // If at end of iterator loop back to beginning
+        p_i_next = iter_A == end_A ? *begin_A : *iter_A;
+        if(iter_A == end_A) iter_A = begin_A;
+
+        nodes.push_back(std::vector<node>());
+
+        auto p_j_next = *iter_B;
+        for(size_t j = 0; j < N_B; ++j, iter_B = std::next(iter_B)){
+
+            auto p_j = p_j_next;
+            // If at end of iterator loop back to beginning
+            p_j_next = iter_B == end_B ? *begin_B : *iter_B;
+
+            nodes[i].push_back(node(i % N_A, j, p_i, p_j, p_i_next, p_j_next));
         }
     }
 
+    // TODO: graph search here
+    std::vector<size_t> optimal_path(N_B);
 
+    std::vector<std::array<size_t, 3>> ret;
+
+    // Reconstruct paths
+    for(size_t j = 0; j < N_B; ++j){
+        size_t end_i = (j == N_B-1 ? optimal_path[0] + N_A :optimal_path[j+1]);
+        for(size_t i = optimal_path[j];
+                i < end_i;
+                ++i){
+            // If end then the next node is to the right, otherwise down
+            size_t next_index;
+            if(i < end_i-1) next_index = nodes[i+1][j].iA;
+            else next_index = nodes[i][j+1].iB;
+
+            ret.push_back({nodes[i][j].iA, nodes[i][j].iB+N_B, next_index});
+        }
+    }
+    
+    return ret;
     
 }
 
