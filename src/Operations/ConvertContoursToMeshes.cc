@@ -482,24 +482,17 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 return;
             };
 
-            {
-                struct mapping_t {
-                    std::list<cop_refw_t> upper;
-                    std::list<cop_refw_t> lower;
-                };
-                std::list<mapping_t> pairings;
-                // Convert from integer numbering to direct pairing info.
-                for(const auto &p : pairs){
-
-                    pairings.emplace_back();
-                    for(const auto &u : p.upper){
-                        pairings.back().upper.emplace_back( *std::next( std::begin(m_cops), u ) );
-                    }
-                    for(const auto &l : p.lower){
-                        pairings.back().lower.emplace_back( *std::next( std::begin(l_cops), l ) );
+            // removes all elements in set2 which are also in set1\
+            // https://stackoverflow.com/a/2874533
+            const auto remove_set1_from_set2 = [&](std::set<size_t> &set1, std::set<size_t> &set2) -> void {
+                for (auto it = set2.begin(); it != set2.end();) {
+                    if (set1.count(*it) != 0) {
+                        set2.erase(it); // c++11 will automatically advance after erasure
+                    } else {
+                        ++it;
                     }
                 }
-            }
+            };
 
             struct mapping_t {
                 std::list<cop_refw_t> upper;
@@ -525,12 +518,12 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
-                YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
+                YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower << " lower_and_mid = " << p.lower_and_mid);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
 
-                }else if( (N_upper == 0) && (N_lower == 1) ){
+                }else if( (N_upper == 0) && (N_lower != 0) ){
                     for(const auto &cop_refw : pcs.lower) close_hole_in_roof(cop_refw);
 
                 }else if( (N_upper == 1) && (N_lower == 1) ){
@@ -546,11 +539,43 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                     }
                 }else{
-                    //YLOGINFO("Performing N-to-N meshing..");
+                    YLOGINFO("Performing N-to-N meshing..");
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
+                    // following will delete from pcs.upper and pcs.lower, which affects l_cops, m_cops, and h_cops
+                    // this will change the index required in pairs because of shift
+                    // instead, don't delete but replace with null object
+                    // if amal_upper, pairs with amal_upper need to be replaced. if lower_and_mid, then check all mids
+                    // if not, check all uppers
                     auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
-                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
+                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower);
+
+                    h_cops.emplace_back(amal_upper);
+                    m_cops.emplace_back(amal_upper);
+
+                    for (auto &other_p : pairs) {
+                        if (p.lower_and_mid) {
+                            if (other_p.lower_and_mid) {
+                                // delete elements from p.upper from other_p.upper
+                                remove_set1_from_set2(p.upper, other_p.upper);
+                            }
+                            else {
+                                // delete elements from p.upper from other_p.lower
+                                remove_set1_from_set2(p.upper, other_p.lower);
+                            }
+                        }
+                        else {
+                            if (other_p.lower_and_mid) {
+                                // nothing to do since doesn't have upper list
+                            }
+                            else {
+                                // delete elements from p.upper from other_p.upper
+                                remove_set1_from_set2(p.upper, other_p.upper);
+                            }
+                        }
+                    }
+
+
 
     /*
     // Leaving this here for future debugging, for which it will no-doubt be needed...
