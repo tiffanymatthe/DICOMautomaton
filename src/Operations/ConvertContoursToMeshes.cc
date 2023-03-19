@@ -271,70 +271,75 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             auto m_cops = locate_contours_on_plane(*m_cp_it);
 
             // Identify whether there are adjacent planes within the contour spacing on either side.
-            auto l_cp_it = std::prev(m_cp_it);
-            //auto h_cp_it = std::next(m_cp_it);
+            auto l_cp_it = std::prev(m_cp_it); // this takes care of searching middle plane with previous plane
+            // if previous plane is too far, will set previous plane to end pointer -> denotes need for a floor cap
+            
+            auto h_cp_it = std::next(m_cp_it);
+            // similarily, this takes care of searching middle plane with higher plane
+            // lower planes take care of post, this is only if middle plane needs to be roof closed (ignore ends)
 
-            if(l_cp_it == std::cend(ucps)){
+            if(l_cp_it == std::cend(ucps)){ // is this needed? isn't it always the previous iterator?
                 continue;
             }else if(l_cp_it != std::cend(ucps)){
                 const auto l_cp_dist = std::abs(m_cp_it->Get_Signed_Distance_To_Point(l_cp_it->R_0));
                 if((1.5 * contour_sep) < l_cp_dist) l_cp_it = std::cend(ucps);
             }
-            //if(h_cp_it != std::cend(ucps)){
-            //    const auto h_cp_dist = std::abs(m_cp_it->Get_Signed_Distance_To_Point(h_cp_it->R_0));
-            //    if((1.5 * contour_sep) < h_cp_dist) h_cp_it = std::cend(ucps);
-            //}
+            if(h_cp_it != std::cend(ucps)){
+               const auto h_cp_dist = std::abs(m_cp_it->Get_Signed_Distance_To_Point(h_cp_it->R_0));
+               if((1.5 * contour_sep) < h_cp_dist) h_cp_it = std::cend(ucps);
+            }
 
             auto l_cops = locate_contours_on_plane(*l_cp_it);
+            auto h_cops = locate_contours_on_plane(*h_cp_it);
             if( (l_cops.size() == 0) && (m_cops.size() == 0) ){
                 throw std::logic_error("Unable to find any contours on contour plane.");
             }
 
-            // Eliminate overlapping contours on both planes.
-            for(auto m1_cop_it = std::begin(m_cops); m1_cop_it != std::end(m_cops); ){
-                for(auto m2_cop_it = std::next(m1_cop_it); m2_cop_it != std::end(m_cops); ){
-                    if(projected_contours_overlap(*m_cp_it, *m1_cop_it,
-                                                  *m_cp_it, *m2_cop_it)){
+            // // Eliminate overlapping contours on both planes.
+            // for(auto m1_cop_it = std::begin(m_cops); m1_cop_it != std::end(m_cops); ){
+            //     for(auto m2_cop_it = std::next(m1_cop_it); m2_cop_it != std::end(m_cops); ){
+            //         if(projected_contours_overlap(*m_cp_it, *m1_cop_it,
+            //                                       *m_cp_it, *m2_cop_it)){
 
-                        // Cull the smaller contour.
-                        const auto m1_area = std::abs( m1_cop_it->get().Get_Signed_Area() );
-                        const auto m2_area = std::abs( m2_cop_it->get().Get_Signed_Area() );
+            //             // Cull the smaller contour.
+            //             const auto m1_area = std::abs( m1_cop_it->get().Get_Signed_Area() );
+            //             const auto m2_area = std::abs( m2_cop_it->get().Get_Signed_Area() );
                         
-                        YLOGWARN("Found overlapping upper-plane contours, trimmed smallest-area contour");
-                        if(m1_area < m2_area){
-                            m1_cop_it = m_cops.erase(m1_cop_it);
-                            m2_cop_it = std::next(m1_cop_it);
-                        }else{
-                            m2_cop_it = m_cops.erase(m2_cop_it);
-                        }
-                    }else{
-                        ++m2_cop_it;
-                    }
-                }
-                ++m1_cop_it;
-            }
-            for(auto l1_cop_it = std::begin(l_cops); l1_cop_it != std::end(l_cops); ){
-                for(auto l2_cop_it = std::next(l1_cop_it); l2_cop_it != std::end(l_cops); ){
-                    if(projected_contours_overlap(*l_cp_it, *l1_cop_it,
-                                                  *l_cp_it, *l2_cop_it)){
+            //             YLOGWARN("Found overlapping upper-plane contours, trimmed smallest-area contour");
+            //             if(m1_area < m2_area){
+            //                 m1_cop_it = m_cops.erase(m1_cop_it);
+            //                 m2_cop_it = std::next(m1_cop_it);
+            //             }else{
+            //                 m2_cop_it = m_cops.erase(m2_cop_it);
+            //             }
+            //         }else{
+            //             ++m2_cop_it;
+            //         }
+            //     }
+            //     ++m1_cop_it;
+            // }
+            // for(auto l1_cop_it = std::begin(l_cops); l1_cop_it != std::end(l_cops); ){
+            //     for(auto l2_cop_it = std::next(l1_cop_it); l2_cop_it != std::end(l_cops); ){
+            //         if(projected_contours_overlap(*l_cp_it, *l1_cop_it,
+            //                                       *l_cp_it, *l2_cop_it)){
 
-                        // Cull the smaller contour.
-                        const auto l1_area = std::abs( l1_cop_it->get().Get_Signed_Area() );
-                        const auto l2_area = std::abs( l2_cop_it->get().Get_Signed_Area() );
+            //             // Cull the smaller contour.
+            //             const auto l1_area = std::abs( l1_cop_it->get().Get_Signed_Area() );
+            //             const auto l2_area = std::abs( l2_cop_it->get().Get_Signed_Area() );
                         
-                        YLOGWARN("Found overlapping lower-plane contours, trimmed smallest-area contour");
-                        if(l1_area < l2_area){
-                            l1_cop_it = l_cops.erase(l1_cop_it);
-                            l2_cop_it = std::next(l1_cop_it);
-                        }else{
-                            l2_cop_it = l_cops.erase(l2_cop_it);
-                        }
-                    }else{
-                        ++l2_cop_it;
-                    }
-                }
-                ++l1_cop_it;
-            }
+            //             YLOGWARN("Found overlapping lower-plane contours, trimmed smallest-area contour");
+            //             if(l1_area < l2_area){
+            //                 l1_cop_it = l_cops.erase(l1_cop_it);
+            //                 l2_cop_it = std::next(l1_cop_it);
+            //             }else{
+            //                 l2_cop_it = l_cops.erase(l2_cop_it);
+            //             }
+            //         }else{
+            //             ++l2_cop_it;
+            //         }
+            //     }
+            //     ++l1_cop_it;
+            // }
 
             // Identify how contours are paired together via computing the projected overlap.
             struct mapping_t {
