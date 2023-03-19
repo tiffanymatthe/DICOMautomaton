@@ -342,20 +342,17 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             // }
 
             // Identify how contours are paired together via computing the projected overlap.
-            struct mapping_t {
-                std::list<cop_refw_t> upper;
-                std::list<cop_refw_t> lower;
-            };
-            std::list<mapping_t> pairings;
+
+            struct pairing_t {
+                    std::set<size_t> upper; // mid if lower_and_mid, else high
+                    std::set<size_t> lower; // low if lower_and_mid, else mid
+                    bool lower_and_mid = true;
+                };
+            
+            std::list<pairing_t> pairs; // represent index in associated list
 
             // Pair based on some simple metrics.
             {
-                struct pairing_t {
-                    std::set<size_t> upper;
-                    std::set<size_t> lower;
-                };
-                std::list<pairing_t> pairs;
-
                 const auto set_union_is_empty = [](const std::set<size_t> &A, const std::set<size_t> &B) -> bool {
                     for(const auto &a : A){
                         if(B.count(a) != 0){
@@ -365,9 +362,10 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     return true;
                 };
 
-                const auto add_pair = [&](long u, long int l) -> void {
+                const auto add_pair = [&](long u, long int l, bool lower_and_mid=true) -> void {
                     // Add a new pairing.
                     pairs.emplace_back();
+                    pairs.back().lower_and_mid = lower_and_mid;
                     if(0 <= u) pairs.back().upper.insert( static_cast<size_t>(u) );
                     if(0 <= l) pairs.back().lower.insert( static_cast<size_t>(l) );
 
@@ -426,16 +424,19 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         if(is_solitary) add_pair(-1, N_l);
                     }
                 }
-
-                // Convert from integer numbering to direct pairing info.
-                for(const auto &p : pairs){
-
-                    pairings.emplace_back();
-                    for(const auto &u : p.upper){
-                        pairings.back().upper.emplace_back( *std::next( std::begin(m_cops), u ) );
-                    }
-                    for(const auto &l : p.lower){
-                        pairings.back().lower.emplace_back( *std::next( std::begin(l_cops), l ) );
+                {
+                    long int N_m = 0;
+                    for(auto m_cop_it = std::begin(m_cops); m_cop_it != std::end(m_cops); ++m_cop_it, ++N_m){
+                        long int N_h = 0;
+                        bool is_solitary = true;
+                        for(auto h_cop_it = std::begin(h_cops); h_cop_it != std::end(h_cops); ++h_cop_it, ++N_h){
+                            if(projected_contours_overlap(*m_cp_it, *m_cop_it,
+                                                          *h_cp_it, *h_cop_it)){
+                                is_solitary = false;
+                                break; // only need to find one correspondence to determine no cap needed
+                            }
+                        }
+                        if(is_solitary) add_pair(-1, N_m, false);
                     }
                 }
             }
@@ -481,11 +482,50 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 return;
             };
 
+            {
+                struct mapping_t {
+                    std::list<cop_refw_t> upper;
+                    std::list<cop_refw_t> lower;
+                };
+                std::list<mapping_t> pairings;
+                // Convert from integer numbering to direct pairing info.
+                for(const auto &p : pairs){
+
+                    pairings.emplace_back();
+                    for(const auto &u : p.upper){
+                        pairings.back().upper.emplace_back( *std::next( std::begin(m_cops), u ) );
+                    }
+                    for(const auto &l : p.lower){
+                        pairings.back().lower.emplace_back( *std::next( std::begin(l_cops), l ) );
+                    }
+                }
+            }
+
+            struct mapping_t {
+                std::list<cop_refw_t> upper;
+                std::list<cop_refw_t> lower;
+            };
+
             // Estimate connectivity and append triangles.
-            for(auto &pcs : pairings){
+            for(auto &p : pairs){
+                auto upper_contours = &m_cops;
+                auto lower_contours = &l_cops;
+                if (!p.lower_and_mid) {
+                    upper_contours = &h_cops;
+                    lower_contours = &m_cops;
+                }
+
+                mapping_t pcs;
+                for(const auto &u : p.upper){
+                    pcs.upper.emplace_back( *std::next( upper_contours->begin(), u ) );
+                }
+                for(const auto &l : p.lower){
+                    pcs.lower.emplace_back( *std::next( lower_contours->begin(), l ) );
+                }
+
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
-                //YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
+                YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
