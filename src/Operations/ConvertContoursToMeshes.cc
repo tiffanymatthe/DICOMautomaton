@@ -482,16 +482,20 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 return;
             };
 
-            // removes all elements in set2 which are also in set1\
+            // removes all elements in set2 which are also in set1
+            // returns true if something was removed
             // https://stackoverflow.com/a/2874533
-            const auto remove_set1_from_set2 = [&](std::set<size_t> &set1, std::set<size_t> &set2) -> void {
+            const auto remove_set1_from_set2 = [&](std::set<size_t> &set1, std::set<size_t> &set2) -> bool {
+                bool removed= false;
                 for (auto it = set2.begin(); it != set2.end();) {
                     if (set1.count(*it) != 0) {
                         set2.erase(it); // c++11 will automatically advance after erasure
+                        removed=true;
                     } else {
                         ++it;
                     }
                 }
+                return removed;
             };
 
             struct mapping_t {
@@ -557,11 +561,13 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         if (p.lower_and_mid) {
                             if (other_p.lower_and_mid) {
                                 // delete elements from p.upper from other_p.upper
-                                remove_set1_from_set2(p.upper, other_p.upper);
+                                if(remove_set1_from_set2(p.upper, other_p.upper)) // removes and checks if there was removal
+                                    other_p.upper.insert(static_cast<size_t>(m_cops.size()-1));
                             }
                             else {
                                 // delete elements from p.upper from other_p.lower
-                                remove_set1_from_set2(p.upper, other_p.lower);
+                                if(remove_set1_from_set2(p.upper, other_p.lower))
+                                    other_p.lower.insert(static_cast<size_t>(m_cops.size()-1));
                             }
                         }
                         else {
@@ -570,7 +576,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             }
                             else {
                                 // delete elements from p.upper from other_p.upper
-                                remove_set1_from_set2(p.upper, other_p.upper);
+                                if(remove_set1_from_set2(p.upper, other_p.upper))
+                                    other_p.upper.insert(static_cast<size_t>(m_cops.size()-1));
                             }
                         }
                     }
