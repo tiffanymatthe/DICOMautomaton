@@ -271,14 +271,10 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             auto m_cops = locate_contours_on_plane(*m_cp_it);
 
             // Identify whether there are adjacent planes within the contour spacing on either side.
-            auto l_cp_it = std::prev(m_cp_it); // this takes care of searching middle plane with previous plane
-            // if previous plane is too far, will set previous plane to end pointer -> denotes need for a floor cap
-            
+            auto l_cp_it = std::prev(m_cp_it);
             auto h_cp_it = std::next(m_cp_it);
-            // similarily, this takes care of searching middle plane with higher plane
-            // lower planes take care of post, this is only if middle plane needs to be roof closed (ignore ends)
 
-            if(l_cp_it == std::cend(ucps)){ // is this needed? isn't it always the previous iterator?
+            if(l_cp_it == std::cend(ucps)){
                 continue;
             }else if(l_cp_it != std::cend(ucps)){
                 const auto l_cp_dist = std::abs(m_cp_it->Get_Signed_Distance_To_Point(l_cp_it->R_0));
@@ -291,68 +287,74 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
             auto l_cops = locate_contours_on_plane(*l_cp_it);
             auto h_cops = locate_contours_on_plane(*h_cp_it);
+
+            decltype(l_cops) m_cops_to_roof_cap;
+
             if( (l_cops.size() == 0) && (m_cops.size() == 0) ){
                 throw std::logic_error("Unable to find any contours on contour plane.");
             }
 
-            // // Eliminate overlapping contours on both planes.
-            // for(auto m1_cop_it = std::begin(m_cops); m1_cop_it != std::end(m_cops); ){
-            //     for(auto m2_cop_it = std::next(m1_cop_it); m2_cop_it != std::end(m_cops); ){
-            //         if(projected_contours_overlap(*m_cp_it, *m1_cop_it,
-            //                                       *m_cp_it, *m2_cop_it)){
+            // Eliminate overlapping contours on both planes.
+            for(auto m1_cop_it = std::begin(m_cops); m1_cop_it != std::end(m_cops); ){
+                for(auto m2_cop_it = std::next(m1_cop_it); m2_cop_it != std::end(m_cops); ){
+                    if(projected_contours_overlap(*m_cp_it, *m1_cop_it,
+                                                  *m_cp_it, *m2_cop_it)){
 
-            //             // Cull the smaller contour.
-            //             const auto m1_area = std::abs( m1_cop_it->get().Get_Signed_Area() );
-            //             const auto m2_area = std::abs( m2_cop_it->get().Get_Signed_Area() );
+                        // Cull the smaller contour.
+                        const auto m1_area = std::abs( m1_cop_it->get().Get_Signed_Area() );
+                        const auto m2_area = std::abs( m2_cop_it->get().Get_Signed_Area() );
                         
-            //             YLOGWARN("Found overlapping upper-plane contours, trimmed smallest-area contour");
-            //             if(m1_area < m2_area){
-            //                 m1_cop_it = m_cops.erase(m1_cop_it);
-            //                 m2_cop_it = std::next(m1_cop_it);
-            //             }else{
-            //                 m2_cop_it = m_cops.erase(m2_cop_it);
-            //             }
-            //         }else{
-            //             ++m2_cop_it;
-            //         }
-            //     }
-            //     ++m1_cop_it;
-            // }
-            // for(auto l1_cop_it = std::begin(l_cops); l1_cop_it != std::end(l_cops); ){
-            //     for(auto l2_cop_it = std::next(l1_cop_it); l2_cop_it != std::end(l_cops); ){
-            //         if(projected_contours_overlap(*l_cp_it, *l1_cop_it,
-            //                                       *l_cp_it, *l2_cop_it)){
+                        YLOGWARN("Found overlapping upper-plane contours, trimmed smallest-area contour");
+                        if(m1_area < m2_area){
+                            m1_cop_it = m_cops.erase(m1_cop_it);
+                            m2_cop_it = std::next(m1_cop_it);
+                        }else{
+                            m2_cop_it = m_cops.erase(m2_cop_it);
+                        }
+                    }else{
+                        ++m2_cop_it;
+                    }
+                }
+                ++m1_cop_it;
+            }
+            for(auto l1_cop_it = std::begin(l_cops); l1_cop_it != std::end(l_cops); ){
+                for(auto l2_cop_it = std::next(l1_cop_it); l2_cop_it != std::end(l_cops); ){
+                    if(projected_contours_overlap(*l_cp_it, *l1_cop_it,
+                                                  *l_cp_it, *l2_cop_it)){
 
-            //             // Cull the smaller contour.
-            //             const auto l1_area = std::abs( l1_cop_it->get().Get_Signed_Area() );
-            //             const auto l2_area = std::abs( l2_cop_it->get().Get_Signed_Area() );
+                        // Cull the smaller contour.
+                        const auto l1_area = std::abs( l1_cop_it->get().Get_Signed_Area() );
+                        const auto l2_area = std::abs( l2_cop_it->get().Get_Signed_Area() );
                         
-            //             YLOGWARN("Found overlapping lower-plane contours, trimmed smallest-area contour");
-            //             if(l1_area < l2_area){
-            //                 l1_cop_it = l_cops.erase(l1_cop_it);
-            //                 l2_cop_it = std::next(l1_cop_it);
-            //             }else{
-            //                 l2_cop_it = l_cops.erase(l2_cop_it);
-            //             }
-            //         }else{
-            //             ++l2_cop_it;
-            //         }
-            //     }
-            //     ++l1_cop_it;
-            // }
+                        YLOGWARN("Found overlapping lower-plane contours, trimmed smallest-area contour");
+                        if(l1_area < l2_area){
+                            l1_cop_it = l_cops.erase(l1_cop_it);
+                            l2_cop_it = std::next(l1_cop_it);
+                        }else{
+                            l2_cop_it = l_cops.erase(l2_cop_it);
+                        }
+                    }else{
+                        ++l2_cop_it;
+                    }
+                }
+                ++l1_cop_it;
+            }
 
             // Identify how contours are paired together via computing the projected overlap.
-
-            struct pairing_t {
-                    std::set<size_t> upper; // mid if lower_and_mid, else high
-                    std::set<size_t> lower; // low if lower_and_mid, else mid
-                    bool lower_and_mid = true;
-                };
-            
-            std::list<pairing_t> pairs; // represent index in associated list
+            struct mapping_t {
+                std::list<cop_refw_t> upper;
+                std::list<cop_refw_t> lower;
+            };
+            std::list<mapping_t> pairings;
 
             // Pair based on some simple metrics.
             {
+                struct pairing_t {
+                    std::set<size_t> upper;
+                    std::set<size_t> lower;
+                };
+                std::list<pairing_t> pairs;
+
                 const auto set_union_is_empty = [](const std::set<size_t> &A, const std::set<size_t> &B) -> bool {
                     for(const auto &a : A){
                         if(B.count(a) != 0){
@@ -362,10 +364,9 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     return true;
                 };
 
-                const auto add_pair = [&](long u, long int l, bool lower_and_mid=true) -> void {
+                const auto add_pair = [&](long u, long int l) -> void {
                     // Add a new pairing.
                     pairs.emplace_back();
-                    pairs.back().lower_and_mid = lower_and_mid;
                     if(0 <= u) pairs.back().upper.insert( static_cast<size_t>(u) );
                     if(0 <= l) pairs.back().lower.insert( static_cast<size_t>(l) );
 
@@ -424,6 +425,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         if(is_solitary) add_pair(-1, N_l);
                     }
                 }
+
+                // checks for m contours without associated top
                 {
                     long int N_m = 0;
                     for(auto m_cop_it = std::begin(m_cops); m_cop_it != std::end(m_cops); ++m_cop_it, ++N_m){
@@ -433,10 +436,24 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             if(projected_contours_overlap(*m_cp_it, *m_cop_it,
                                                           *h_cp_it, *h_cop_it)){
                                 is_solitary = false;
-                                break; // only need to find one correspondence to determine no cap needed
+                                break;
                             }
                         }
-                        if(is_solitary) add_pair(-1, N_m, false);
+                        if(is_solitary) {
+                            m_cops_to_roof_cap.emplace_back(*std::next( std::begin(m_cops), N_m ) );
+                        }
+                    }
+                }
+
+                // Convert from integer numbering to direct pairing info.
+                for(const auto &p : pairs){
+
+                    pairings.emplace_back();
+                    for(const auto &u : p.upper){
+                        pairings.back().upper.emplace_back( *std::next( std::begin(m_cops), u ) );
+                    }
+                    for(const auto &l : p.lower){
+                        pairings.back().lower.emplace_back( *std::next( std::begin(l_cops), l ) );
                     }
                 }
             }
@@ -482,53 +499,18 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 return;
             };
 
-            // removes all elements in set2 which are also in set1
-            // returns true if something was removed
-            // https://stackoverflow.com/a/2874533
-            const auto remove_set1_from_set2 = [&](std::set<size_t> &set1, std::set<size_t> &set2) -> bool {
-                bool removed= false;
-                for (auto it = set2.begin(); it != set2.end();) {
-                    if (set1.count(*it) != 0) {
-                        set2.erase(it); // c++11 will automatically advance after erasure
-                        YLOGINFO("ERASING FROM SET now size " << set2.size());
-                        removed=true;
-                    } else {
-                        ++it;
-                    }
-                }
-                return removed;
-            };
-
-            struct mapping_t {
-                std::list<cop_refw_t> upper;
-                std::list<cop_refw_t> lower;
-            };
+            std::list<contour_of_points<double>> amalgamated_contours;
 
             // Estimate connectivity and append triangles.
-            for(auto &p : pairs){
-                auto upper_contours = &m_cops;
-                auto lower_contours = &l_cops;
-                if (!p.lower_and_mid) {
-                    upper_contours = &h_cops;
-                    lower_contours = &m_cops;
-                }
-
-                mapping_t pcs;
-                for(const auto &u : p.upper){
-                    pcs.upper.emplace_back( *std::next( upper_contours->begin(), u ) );
-                }
-                for(const auto &l : p.lower){
-                    pcs.lower.emplace_back( *std::next( lower_contours->begin(), l ) );
-                }
-
+            for(auto &pcs : pairings){
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
-                YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower << " lower_and_mid = " << p.lower_and_mid);
+                YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
 
-                }else if( (N_upper == 0) && (N_lower != 0) ){
+                }else if( (N_upper == 0) && (N_lower == 1) ){
                     for(const auto &cop_refw : pcs.lower) close_hole_in_roof(cop_refw);
 
                 }else if( (N_upper == 1) && (N_lower == 1) ){
@@ -544,60 +526,77 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                     }
                 }else{
-                    YLOGINFO("Performing N-to-N meshing..");
+                    //YLOGINFO("Performing N-to-N meshing..");
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
-                    // following will delete from pcs.upper and pcs.lower, which affects l_cops, m_cops, and h_cops
-                    // this will change the index required in pairs because of shift
-                    // instead, don't delete but replace with null object
-                    // if amal_upper, pairs with amal_upper need to be replaced. if lower_and_mid, then check all mids
-                    // if not, check all uppers
-                    auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
-                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower);
 
-                    h_cops.emplace_back(amal_upper);
-                    m_cops.emplace_back(amal_upper);
-
-                    for (auto &other_p : pairs) {
-                        if (p.lower_and_mid) {
-                            if (other_p.lower_and_mid) {
-                                // delete elements from p.upper from other_p.upper
-                                if(remove_set1_from_set2(p.upper, other_p.upper)) // removes and checks if there was removal
-                                    other_p.upper.insert(static_cast<size_t>(m_cops.size()-1));
-                            }
-                            else {
-                                // delete elements from p.upper from other_p.lower
-                                if(remove_set1_from_set2(p.upper, other_p.lower))
-                                    other_p.lower.insert(static_cast<size_t>(m_cops.size()-1));
+                    // pre-remove before amalgamation
+                    // https://stackoverflow.com/a/2874533
+                    bool found_upper_solitary = false;
+                    decltype(m_cops_to_roof_cap) temp_to_keep;
+                    for (auto cop : m_cops_to_roof_cap) {
+                        YLOGINFO("going through cop /" << m_cops_to_roof_cap.size());
+                        bool found = false;
+                        for (auto u : pcs.upper) {
+                            if (u.get() == cop.get()) {
+                                found = true;
+                                break;
                             }
                         }
-                        else {
-                            if (other_p.lower_and_mid) {
-                                // nothing to do since doesn't have upper list
-                            }
-                            else {
-                                // delete elements from p.upper from other_p.upper
-                                if(remove_set1_from_set2(p.upper, other_p.upper))
-                                    other_p.upper.insert(static_cast<size_t>(m_cops.size()-1));
-                            }
+                        if (found) {
+                            YLOGINFO("Found solitary that will be removed");
+                            found_upper_solitary = true;
+                        } else {
+                            YLOGINFO("Found one that we can keep");
+                            temp_to_keep.emplace_back(cop);
                         }
                     }
+                    YLOGINFO("Length to keep " << temp_to_keep.size());
+                    m_cops_to_roof_cap = temp_to_keep;
+                    // for (auto u : pcs.upper) {
+                    //     YLOGINFO("Going through upper contours /" << pcs.upper.size());
+                    //     for (auto it = m_cops_to_roof_cap.begin(); it != m_cops_to_roof_cap.end();) {
+                    //         YLOGINFO("Going through cops to roof cap");
+                    //         YLOGINFO(m_cops_to_roof_cap.size());
+                    //         if (u.get() == (*it).get()) {
+                    //             found_upper_solitary = true;
+                    //             // cannot use erase since it will invalidate all references to element
+                    //             // https://stackoverflow.com/a/39990105
+                    //             // issue with end points
+                    //             decltype(m_cops_to_roof_cap) temp_with_removed(m_cops_to_roof_cap.begin(), it);
+                    //             decltype(m_cops_to_roof_cap) right_side(std::next(it),m_cops_to_roof_cap.end());
+                    //             temp_with_removed.splice(temp_with_removed.end(), right_side);
+                    //         } else {
+                    //             ++it;
+                    //         }
+                    //     }
+                    // }
 
+                    YLOGINFO("Pre removed before amalgamation");
 
+                    // will modify upper and lower in pairings, ok if only processing in one direction
+                    auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
+                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
 
-    /*
-    // Leaving this here for future debugging, for which it will no-doubt be needed...
-    {
-        const auto amal_cop_str = amal_upper.write_to_string();
-        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_upper_", 6, ".txt");
-        OverwriteStringToFile(amal_cop_str, fname);
-    }
-    {
-        const auto amal_cop_str = amal_lower.write_to_string();
-        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_lower_", 6, ".txt");
-        OverwriteStringToFile(amal_cop_str, fname);
-    }
-    */
+                    if (found_upper_solitary) {
+                        amalgamated_contours.emplace_back(amal_upper);
+                        m_cops_to_roof_cap.emplace_back(amal_upper);
+                        YLOGINFO("Added amal_upper so now size is " << m_cops_to_roof_cap.size());
+                    }
+
+                    /*
+                    // Leaving this here for future debugging, for which it will no-doubt be needed...
+                    {
+                        const auto amal_cop_str = amal_upper.write_to_string();
+                        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_upper_", 6, ".txt");
+                        OverwriteStringToFile(amal_cop_str, fname);
+                    }
+                    {
+                        const auto amal_cop_str = amal_lower.write_to_string();
+                        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_lower_", 6, ".txt");
+                        OverwriteStringToFile(amal_cop_str, fname);
+                    }
+                    */
                     auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
 
                     const auto old_face_count = amesh.vertices.size();
@@ -610,6 +609,11 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                     }
                 }
+            }
+
+            for (auto &cop : m_cops_to_roof_cap) {
+                YLOGINFO("Closing final holes in roof");
+                close_hole_in_roof(cop);
             }
         }
 
