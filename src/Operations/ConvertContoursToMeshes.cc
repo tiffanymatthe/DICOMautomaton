@@ -490,6 +490,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 for (auto it = set2.begin(); it != set2.end();) {
                     if (set1.count(*it) != 0) {
                         set2.erase(it); // c++11 will automatically advance after erasure
+                        YLOGINFO("ERASING FROM SET now size " << set2.size());
                         removed=true;
                     } else {
                         ++it;
