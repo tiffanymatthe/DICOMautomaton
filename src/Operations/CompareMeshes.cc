@@ -159,7 +159,7 @@ bool CompareMeshes(Drover &DICOM_data,
         const auto P_B = mesh2->meshes.vertices.at( fv[1] );
         const auto P_C = mesh2->meshes.vertices.at( fv[2] );
 
-        volume2 += (-P_C.x*P_B.y*P_A.z + P_B.x*P_C.y*P_A.z + -
+        volume2 += (-P_C.x*P_B.y*P_A.z + P_B.x*P_C.y*P_A.z +
                 P_C.x*P_A.y*P_B.z - P_A.x*P_C.y*P_B.z - 
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
         }
