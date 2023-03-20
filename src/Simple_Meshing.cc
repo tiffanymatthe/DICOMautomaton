@@ -16,7 +16,8 @@
 #include <cmath>
 #include <memory>
 #include <stdexcept>
-#include <limits.h>           //Needed for double max
+#include <limits>           //Needed for double max
+#include <queue>
 
 #include <cstdlib>            //Needed for exit() calls.
 #include <utility>            //Needed for std::pair.
@@ -82,21 +83,52 @@ void convert_nonoverlapping(
  *
  * returns (minimal path, cost of minimal path)
  */
-std::pair<std::vector<size_t>, unsigned int> 
+std::pair<std::vector<size_t>, double> 
 single_path(std::vector<std::vector<node>>& nodes, size_t k,
         std::vector<size_t>& path_top, std::vector<size_t>& path_bottom){
-    // i, j, distance
-    double distances[nodes.size()][nodes[0].size()];
 
-    for(size_t i = 0; i < nodes.size(); ++i){
-        for(size_t j = 0; j < nodes[i].size(); ++j){
-            if(
-            unvisited.insert({i, j, std::numeric_limits<double>::max()});
+    size_t m = nodes.size()/2, n = nodes[0].size();
+
+    // i, j, distance
+    std::vector<std::vector<double>> distances(m, 
+            std::vector<double>(n, std::numeric_limits<double>::max()));
+
+    // Current minimum distance among nodes
+    typedef std::pair<double, std::pair<size_t, size_t>> node_dist;
+    std::priority_queue<node_dist, std::vector<node_dist>, std::greater<node_dist>> min_dist;
+    distances[k][0] = 0;
+    min_dist.push({0, {k, 0}});
+    
+
+    // Loop to get distances of each relevant node
+    while(min_dist.top().second.first != 2*k && min_dist.top().second.second != n-1){
+        auto [i, j] = min_dist.top().second;
+        // Traverse next nodes and set their distances based on current
+        // Try down
+        // k instead of n because we can't go past endpoint
+        if(i+1 < 2*k && i+1 >= path_top[j] && i+1 <= path_bottom[j]){
+            distances[i+1][j] = std::min(distances[i][j] + nodes[i][j].wA, distances[i+1][j]);
+            min_dist.push({distances[i+1][j], {i+1, j}});
         }
+        // Try right
+        if(j+1 < n && i >= path_top[j+1] && i <= path_bottom[j+1]){
+            distances[i][j+1] = std::min(distances[i][j] + nodes[i][j].wB, distances[i][j+1]);
+            min_dist.push({distances[i][j+1], {i, j+1}});
+        }
+
+        min_dist.pop();
     }
 
+    // Reconstruct best path
+    std::vector<size_t> ret(n);
+    ret[0] = k;
 
-    
+    for(size_t j = n-1, i = 2*k; j > 0; ++j){
+        while(i > 0 && distances[i-1][j] >= distances[i][j-1]) --i;
+        ret[j] = i;
+    }
+    // Cost of path is length to end node
+    return {ret, distances[2*k][n-1]};
 }
 
 /*
@@ -152,15 +184,15 @@ std::vector<size_t> all_paths(std::vector<std::vector<node>>& nodes){
     // nodes.size() should always be even
     // There's some weirdness with the indexing relative to the paper since
     // they label their vertices for 0,1,...,m, so have m+1 vertices
-    size_t m = nodes.size()/2 - 1;
+    size_t m = nodes.size()/2;
 
     // SINGLEPATH(0,G')
     // SINGLEPATH(m,G')
     auto [path_start, cost_start] = single_path(nodes, 0, top_path, bottom_path);
-    auto [path_end, cost_end] = single_path(nodes, m, top_path, bottom_path);
+    auto [path_end, cost_end] = single_path(nodes, m-1, top_path, bottom_path);
 
     // PATHSBETWEEN(0, m)
-    auto [path_between, cost_between] = paths_between(nodes, 0, m, path_start, path_end);
+    auto [path_between, cost_between] = paths_between(nodes, 0, m-1, path_start, path_end);
 
     // Return minimum of paths calculated
     if(cost_start < cost_end && cost_start < cost_between){
