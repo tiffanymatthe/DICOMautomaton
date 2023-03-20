@@ -289,6 +289,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             auto h_cops = locate_contours_on_plane(*h_cp_it);
 
             decltype(l_cops) m_cops_to_roof_cap;
+            std::list<contour_of_points<double>> amalgamated_contours;
 
             if( (l_cops.size() == 0) && (m_cops.size() == 0) ){
                 throw std::logic_error("Unable to find any contours on contour plane.");
@@ -499,8 +500,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 return;
             };
 
-            std::list<contour_of_points<double>> amalgamated_contours;
-
             // Estimate connectivity and append triangles.
             for(auto &pcs : pairings){
                 const auto N_upper = pcs.upper.size();
@@ -580,7 +579,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
                     if (found_upper_solitary) {
                         amalgamated_contours.emplace_back(amal_upper);
-                        m_cops_to_roof_cap.emplace_back(amal_upper);
+                        m_cops_to_roof_cap.emplace_back(amalgamated_contours.back());
                         YLOGINFO("Added amal_upper so now size is " << m_cops_to_roof_cap.size());
                     }
 
