@@ -16,6 +16,7 @@
 #include <cmath>
 #include <memory>
 #include <stdexcept>
+#include <limits.h>           //Needed for double max
 
 #include <cstdlib>            //Needed for exit() calls.
 #include <utility>            //Needed for std::pair.
@@ -44,22 +45,134 @@ class node {
         // Weight of choosing the next vertex to be on A/B
         // In our case this corresponds to the area of (iA, iB, iA+1) 
         // or (iA, iB, iB+1) respectively
-        unsigned int wA, wB;
+        double wA, wB;
 
         node(size_t ia, size_t ib, 
                 vec3<double>& point_A,
                 vec3<double>& point_B,
-                vec3<double>& point_A_plus_1,
-                vec3<double>& point_B_plus_1){
+                vec3<double>& point_A_next,
+                vec3<double>& point_B_next){
             iA = ia; iB = ib;
             const vec3<double> ab = point_A - point_B;
             // Weights are surface area of potential next faces
-            wA = 0.5 * ab.Cross(point_B - point_A_plus_1).length();
-            wB = 0.5 * ab.Cross(point_A - point_B_plus_1).length();
+            wA = 0.5 * ab.Cross(point_B - point_A_next).length();
+            wB = 0.5 * ab.Cross(point_A - point_B_next).length();
 
         }
 };
 
+void convert_nonoverlapping(
+        std::vector<size_t>& path_i, std::vector<size_t>& path_j){
+    for(size_t k = 0; k < path_i.size(); ++k){
+        if(path_i[k] > path_j[k]){
+            std::swap(path_i[k], path_j[k]);
+        }
+    }
+}
+
+/*
+ * Calculates lowest cost path between assuming a specific start vertex
+ *
+ * nodes: graph of nodes
+ * k: index of row to start at
+ * path_top: top bounding path to search below
+ * path_bottom: bottom bounding path to search above
+ *
+ * Assumes bottom_path[i] > top_path[i] for all i
+ *
+ * returns (minimal path, cost of minimal path)
+ */
+std::pair<std::vector<size_t>, unsigned int> 
+single_path(std::vector<std::vector<node>>& nodes, size_t k,
+        std::vector<size_t>& path_top, std::vector<size_t>& path_bottom){
+    // i, j, distance
+    double distances[nodes.size()][nodes[0].size()];
+
+    for(size_t i = 0; i < nodes.size(); ++i){
+        for(size_t j = 0; j < nodes[i].size(); ++j){
+            if(
+            unvisited.insert({i, j, std::numeric_limits<double>::max()});
+        }
+    }
+
+
+    
+}
+
+/*
+ * Calculates optimal path between two indices
+ *
+ * nodes: graph of nodes
+ * i: Upper index
+ * j: lower index, assumes i<j
+ * path_i: minimum path starting from i
+ * path_j: minimum path starting from j
+ *
+ * returns (minimal path, cost of minimal path)
+ */
+std::pair<std::vector<size_t>, unsigned int> 
+paths_between(std::vector<std::vector<node>> nodes, size_t i, size_t j, 
+        std::vector<size_t>& path_i, std::vector<size_t>& path_j){
+    // If we're at something of length 2 or less, stop recursion
+    if(j-i < 2) return {std::vector<size_t>(), std::numeric_limits<double>::max()};
+    size_t k = (i + j) / 2;
+    
+    // SINGLEPATH(k, G'(i, j))
+    auto [path_k, cost_k] = single_path(nodes, k, path_i, path_j);
+
+    // PATHSBETWEEN(i, k)
+    // PATHSBETWEEN(k, j)
+    auto [path_before, cost_before] = paths_between(nodes, i, k, path_i, path_k);
+    auto [path_after, cost_after] = paths_between(nodes, k, j, path_k, path_j);
+
+    // Return minimum of paths calculated
+    if(cost_before < cost_k && cost_before < cost_after){
+        return {path_before, cost_before};
+    }
+    else if(cost_after < cost_k && cost_after < cost_before){
+        return {path_after, cost_after};
+    }
+    else {
+        return {path_k, cost_k};
+    }
+}
+
+/*
+ * Calculates optimal path through graph representation of tiling
+ *
+ * nodes: graph of nodes, size 2m x n
+ *
+ * Returns minimal path
+ */
+std::vector<size_t> all_paths(std::vector<std::vector<node>>& nodes){
+    // Start with G' as best bounds
+    std::vector<size_t> top_path(nodes[0].size(), 0);
+    std::vector<size_t> bottom_path(nodes[0].size(), nodes.size());
+    
+    // nodes.size() should always be even
+    // There's some weirdness with the indexing relative to the paper since
+    // they label their vertices for 0,1,...,m, so have m+1 vertices
+    size_t m = nodes.size()/2 - 1;
+
+    // SINGLEPATH(0,G')
+    // SINGLEPATH(m,G')
+    auto [path_start, cost_start] = single_path(nodes, 0, top_path, bottom_path);
+    auto [path_end, cost_end] = single_path(nodes, m, top_path, bottom_path);
+
+    // PATHSBETWEEN(0, m)
+    auto [path_between, cost_between] = paths_between(nodes, 0, m, path_start, path_end);
+
+    // Return minimum of paths calculated
+    if(cost_start < cost_end && cost_start < cost_between){
+        return path_start;
+    }
+    else if(cost_end < cost_start && cost_end < cost_between){
+        return path_end;
+    }
+    else {
+        return path_between;
+    }
+}
 
 // Method taken from here: 
 // https://www.cs.jhu.edu/~misha/Fall13b/Papers/Fuchs77.pdf
