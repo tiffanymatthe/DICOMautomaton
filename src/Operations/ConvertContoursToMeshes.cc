@@ -288,7 +288,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             auto l_cops = locate_contours_on_plane(*l_cp_it);
             auto h_cops = locate_contours_on_plane(*h_cp_it);
 
-            decltype(l_cops) m_cops_to_roof_cap;
+            decltype(l_cops) m_cops_with_roof_hole;
+            // store amalgamated contours for proper scope such that reference wrappers in m_cops_with_roof_hole work
             std::list<contour_of_points<double>> amalgamated_contours;
 
             if( (l_cops.size() == 0) && (m_cops.size() == 0) ){
@@ -441,7 +442,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             }
                         }
                         if(is_solitary) {
-                            m_cops_to_roof_cap.emplace_back(*std::next( std::begin(m_cops), N_m ) );
+                            m_cops_with_roof_hole.emplace_back(*std::next( std::begin(m_cops), N_m ) );
                         }
                     }
                 }
@@ -500,11 +501,34 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 return;
             };
 
+            // removes contours in base_cops which are identical to contours in cops_to_remove
+            // returns list of contours remaining in base_cops, but does not modify base_cops
+            // this is used instead of base_cops.erase(...) since erasing an object with a reference wrapper will erase all references to it,
+            // causing seg faults if other list of contours store the same contour
+            // https://stackoverflow.com/a/2874533
+            const auto remove_contours = [&](std::list<cop_refw_t> base_cops, std::list<cop_refw_t> cops_to_remove) -> std::list<cop_refw_t> {
+                    std::list<cop_refw_t> contours_to_keep;
+                    for (auto cop : base_cops) {
+                        bool must_remove = false;
+                        for (auto u : cops_to_remove) {
+                            if (u.get() == cop.get()) {
+                                must_remove = true;
+                                break;
+                            }
+                        }
+                        if (!must_remove) {
+                            contours_to_keep.emplace_back(cop);
+                        }
+                    }
+
+                    return contours_to_keep;
+            };
+
             // Estimate connectivity and append triangles.
             for(auto &pcs : pairings){
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
-                YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
+                // YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
@@ -529,58 +553,20 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
 
-                    // pre-remove before amalgamation
-                    // https://stackoverflow.com/a/2874533
-                    bool found_upper_solitary = false;
-                    decltype(m_cops_to_roof_cap) temp_to_keep;
-                    for (auto cop : m_cops_to_roof_cap) {
-                        YLOGINFO("going through cop /" << m_cops_to_roof_cap.size());
-                        bool found = false;
-                        for (auto u : pcs.upper) {
-                            if (u.get() == cop.get()) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (found) {
-                            YLOGINFO("Found solitary that will be removed");
-                            found_upper_solitary = true;
-                        } else {
-                            YLOGINFO("Found one that we can keep");
-                            temp_to_keep.emplace_back(cop);
-                        }
-                    }
-                    YLOGINFO("Length to keep " << temp_to_keep.size());
-                    m_cops_to_roof_cap = temp_to_keep;
-                    // for (auto u : pcs.upper) {
-                    //     YLOGINFO("Going through upper contours /" << pcs.upper.size());
-                    //     for (auto it = m_cops_to_roof_cap.begin(); it != m_cops_to_roof_cap.end();) {
-                    //         YLOGINFO("Going through cops to roof cap");
-                    //         YLOGINFO(m_cops_to_roof_cap.size());
-                    //         if (u.get() == (*it).get()) {
-                    //             found_upper_solitary = true;
-                    //             // cannot use erase since it will invalidate all references to element
-                    //             // https://stackoverflow.com/a/39990105
-                    //             // issue with end points
-                    //             decltype(m_cops_to_roof_cap) temp_with_removed(m_cops_to_roof_cap.begin(), it);
-                    //             decltype(m_cops_to_roof_cap) right_side(std::next(it),m_cops_to_roof_cap.end());
-                    //             temp_with_removed.splice(temp_with_removed.end(), right_side);
-                    //         } else {
-                    //             ++it;
-                    //         }
-                    //     }
-                    // }
+                    // remove contours found in pcs.upper from m_cops_with_roof_hole since those will be erased in amalgamation
+                    auto num_cops_with_roof_hole = m_cops_with_roof_hole.size();
+                    m_cops_with_roof_hole = remove_contours(m_cops_with_roof_hole, pcs.upper);
 
-                    YLOGINFO("Pre removed before amalgamation");
-
+                    // assumes all pcs.upper either have roof hole or none, ok assumption since we performed pairing earlier
+                    bool amal_has_roof_hole = num_cops_with_roof_hole != m_cops_with_roof_hole.size();
+            
                     // will modify upper and lower in pairings, ok if only processing in one direction
                     auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
                     auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
 
-                    if (found_upper_solitary) {
+                    if (amal_has_roof_hole) {
                         amalgamated_contours.emplace_back(amal_upper);
-                        m_cops_to_roof_cap.emplace_back(amalgamated_contours.back());
-                        YLOGINFO("Added amal_upper so now size is " << m_cops_to_roof_cap.size());
+                        m_cops_with_roof_hole.emplace_back(amalgamated_contours.back());
                     }
 
                     /*
@@ -610,8 +596,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 }
             }
 
-            for (auto &cop : m_cops_to_roof_cap) {
-                YLOGINFO("Closing final holes in roof");
+            for (auto &cop : m_cops_with_roof_hole) {
+                // YLOGINFO("Closing final holes in roof");
                 close_hole_in_roof(cop);
             }
         }
