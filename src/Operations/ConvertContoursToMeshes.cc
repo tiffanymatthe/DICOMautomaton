@@ -272,7 +272,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             // A countour is enclosed if *all* vertices of a contour lies inside the other polygon.
             // Should work well for most realistic contours that are highly sampled
 
-
             if (!projected_contours_overlap(pln_A, A, pln_B, B)){
                 return false;
             }
@@ -290,13 +289,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     b_in_a = false;
                 }
             }
-            if (a_in_b){
-                YLOGWARN("a encl by b");
-            }
-            if (b_in_a){
-                YLOGWARN("b encl by a");
-            }
-
 
             return !(a_in_b || b_in_a);
         };
