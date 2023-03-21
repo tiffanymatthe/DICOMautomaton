@@ -286,11 +286,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             }
 
             auto l_cops = locate_contours_on_plane(*l_cp_it);
-            auto h_cops = locate_contours_on_plane(*h_cp_it);
-
-            decltype(l_cops) m_cops_with_roof_hole;
-            // store amalgamated contours for proper scope such that reference wrappers in m_cops_with_roof_hole work
-            std::list<contour_of_points<double>> amalgamated_contours;
 
             if( (l_cops.size() == 0) && (m_cops.size() == 0) ){
                 throw std::logic_error("Unable to find any contours on contour plane.");
@@ -428,25 +423,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     }
                 }
 
-                // checks for m contours without associated top
-                {
-                    long int N_m = 0;
-                    for(auto m_cop_it = std::begin(m_cops); m_cop_it != std::end(m_cops); ++m_cop_it, ++N_m){
-                        long int N_h = 0;
-                        bool is_solitary = true;
-                        for(auto h_cop_it = std::begin(h_cops); h_cop_it != std::end(h_cops); ++h_cop_it, ++N_h){
-                            if(projected_contours_overlap(*m_cp_it, *m_cop_it,
-                                                          *h_cp_it, *h_cop_it)){
-                                is_solitary = false;
-                                break;
-                            }
-                        }
-                        if(is_solitary) {
-                            m_cops_with_roof_hole.emplace_back(*std::next( std::begin(m_cops), N_m ) );
-                        }
-                    }
-                }
-
                 // Convert from integer numbering to direct pairing info.
                 for(const auto &p : pairs){
 
@@ -501,29 +477,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 return;
             };
 
-            // removes contours in base_cops which are identical to contours in cops_to_remove
-            // returns list of contours remaining in base_cops, but does not modify base_cops
-            // this is used instead of base_cops.erase(...) since erasing an object with a reference wrapper will erase all references to it,
-            // causing seg faults if other list of contours store the same contour
-            // https://stackoverflow.com/a/2874533
-            const auto remove_contours = [&](std::list<cop_refw_t> base_cops, std::list<cop_refw_t> cops_to_remove) -> std::list<cop_refw_t> {
-                    std::list<cop_refw_t> contours_to_keep;
-                    for (auto cop : base_cops) {
-                        bool must_remove = false;
-                        for (auto u : cops_to_remove) {
-                            if (u.get() == cop.get()) {
-                                must_remove = true;
-                                break;
-                            }
-                        }
-                        if (!must_remove) {
-                            contours_to_keep.emplace_back(cop);
-                        }
-                    }
-
-                    return contours_to_keep;
-            };
-
             // Estimate connectivity and append triangles.
             for(auto &pcs : pairings){
                 const auto N_upper = pcs.upper.size();
@@ -552,22 +505,10 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     //YLOGINFO("Performing N-to-N meshing..");
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
-
-                    // remove contours found in pcs.upper from m_cops_with_roof_hole since those will be erased in amalgamation
-                    auto num_cops_with_roof_hole = m_cops_with_roof_hole.size();
-                    m_cops_with_roof_hole = remove_contours(m_cops_with_roof_hole, pcs.upper);
-
-                    // assumes all pcs.upper either have roof hole or none, ok assumption since we performed pairing earlier
-                    bool amal_has_roof_hole = num_cops_with_roof_hole != m_cops_with_roof_hole.size();
             
                     // will modify upper and lower in pairings, ok if only processing in one direction
                     auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
                     auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
-
-                    if (amal_has_roof_hole) {
-                        amalgamated_contours.emplace_back(amal_upper);
-                        m_cops_with_roof_hole.emplace_back(amalgamated_contours.back());
-                    }
 
                     /*
                     // Leaving this here for future debugging, for which it will no-doubt be needed...
@@ -593,12 +534,13 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
                         amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                     }
-                }
+                }                
             }
 
-            for (auto &cop : m_cops_with_roof_hole) {
-                // YLOGINFO("Closing final holes in roof");
-                close_hole_in_roof(cop);
+            if (h_cp_it == std::cend(ucps)) {
+                for (auto &cop : m_cops) {
+                    close_hole_in_roof(cop);
+                }
             }
         }
 
