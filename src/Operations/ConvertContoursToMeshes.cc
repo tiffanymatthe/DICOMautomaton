@@ -286,7 +286,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             }
 
             auto l_cops = locate_contours_on_plane(*l_cp_it);
-
             if( (l_cops.size() == 0) && (m_cops.size() == 0) ){
                 throw std::logic_error("Unable to find any contours on contour plane.");
             }
@@ -481,7 +480,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             for(auto &pcs : pairings){
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
-                // YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
+                //YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
@@ -506,7 +505,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
             
-                    // will modify upper and lower in pairings, ok if only processing in one direction
+                    // will modify contours in m_cops and l_cops, ok if only processing in one direction
                     auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
                     auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
 
