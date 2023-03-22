@@ -5,7 +5,6 @@
 #include <functional>
 #include <iterator>
 #include <list>
-#include <tuple>
 #include <map>
 #include <memory>
 #include <set> 
@@ -81,10 +80,10 @@ bool CompareMeshes(Drover &DICOM_data,
     FUNCINFO("Iterating through " << size(mesh1->meshes.vertices) << " and " << size(mesh2->meshes.vertices) << " vertices.");
 
     // O(n^2) time, might be way to speed this up if this is ever a bottleneck
-    for (auto & vertex : mesh1->meshes.vertices) {
+    for (auto& vertex : mesh1->meshes.vertices) {
         // find closest vertex on mesh2 that corresponds to vertex
         double min_distance = -1;
-        for (auto & vertex2 : mesh2->meshes.vertices) {
+        for (auto& vertex2 : mesh2->meshes.vertices) {
             double distance = vertex.distance(vertex2);
             if (min_distance == -1) {
                 min_distance = distance;
@@ -97,10 +96,10 @@ bool CompareMeshes(Drover &DICOM_data,
 
     double second_max_distance = 0;
 
-    for (auto & vertex : mesh2->meshes.vertices) {
+    for (auto& vertex : mesh2->meshes.vertices) {
         // find closest vertex on mesh2 that corresponds to vertex
         double min_distance = -1;
-        for (auto & vertex2 : mesh1->meshes.vertices) {
+        for (auto& vertex2 : mesh1->meshes.vertices) {
             double distance = vertex.distance(vertex2);
             if (min_distance == -1) {
                 min_distance = distance;
@@ -111,26 +110,30 @@ bool CompareMeshes(Drover &DICOM_data,
         second_max_distance = std::max(min_distance, second_max_distance);
     }
 
+    // Calculate centroids by finding the average of all the vertices in the surface mesh
+    //Assumes that contours vertices are distributed evenly on the surface mesh, which is not 
     double sumx = 0, sumy = 0, sumz = 0;
-    for (auto & vertex : mesh1->meshes.vertices) {
+    for (auto& vertex : mesh1->meshes.vertices) {
         sumx += vertex.x;
         sumy += vertex.y;
         sumz += vertex.z;
     }
-
     vec3 centroid1 = vec3(sumx/size(mesh1->meshes.vertices) , sumy/size(mesh1->meshes.vertices) , sumz/size(mesh1->meshes.vertices));
 
     sumx =0, sumy=0 , sumz = 0;
-    for (auto & vertex : mesh2->meshes.vertices) {
+    for (auto& vertex : mesh2->meshes.vertices) {
         sumx += vertex.x;
         sumy += vertex.y;
         sumz += vertex.z;
     }
-
     vec3 centroid2 = vec3(sumx/size(mesh1->meshes.vertices) , sumy/size(mesh1->meshes.vertices) , sumz/size(mesh1->meshes.vertices));
 
     const double centroid_shift = sqrt(pow((centroid2.x-centroid1.x),2) + pow((centroid2.y-centroid1.y),2) + pow((centroid2.y-centroid1.y),2));
     
+    //Converting to a traingular mesh to ensure that each face is made up of 3 vertices for volume calculation
+    //Total volume is calculated by summing the signed volme of the triganular prism made by each face and the origin as the apex.
+    //This method returns a finite volume even if the mesh is open, so watertightness needs to be checked separately.
+
     mesh1->meshes.convert_to_triangles();
     mesh2->meshes.convert_to_triangles();
 
@@ -139,7 +142,7 @@ bool CompareMeshes(Drover &DICOM_data,
     double volume2 = 0;
 
     decltype(mesh1->meshes.faces)* faces = &(mesh1->meshes.faces);
-    for (auto & fv : *faces){
+    for (auto& fv : *faces){
 
         const auto P_A = mesh1->meshes.vertices.at( fv[0] );
         const auto P_B = mesh1->meshes.vertices.at( fv[1] );
@@ -149,11 +152,11 @@ bool CompareMeshes(Drover &DICOM_data,
                 P_C.x*P_A.y*P_B.z - P_A.x*P_C.y*P_B.z - 
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
 
-        }
+    }
 
 
     faces = &(mesh2->meshes.faces);
-    for (auto & fv : *faces){
+    for (auto& fv : *faces){
 
         const auto P_A = mesh2->meshes.vertices.at( fv[0] );
         const auto P_B = mesh2->meshes.vertices.at( fv[1] );
@@ -162,13 +165,11 @@ bool CompareMeshes(Drover &DICOM_data,
         volume2 += (-P_C.x*P_B.y*P_A.z + P_B.x*P_C.y*P_A.z +
                 P_C.x*P_A.y*P_B.z - P_A.x*P_C.y*P_B.z - 
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
-        }
+    }
 
     
 
     FUNCINFO("HAUSDORFF DISTANCE: " << max_distance << " or " << second_max_distance);
-
-    // print out surface areas
     FUNCINFO("SURFACE AREA: First mesh = " << mesh1->meshes.surface_area() << ", second mesh = " << mesh2->meshes.surface_area());
     FUNCINFO("SURFACE AREA (%) difference: " << (mesh1->meshes.surface_area() - mesh2->meshes.surface_area())*100/mesh1->meshes.surface_area());
     FUNCINFO("VOLUME: First mesh = " <<abs(volume1) << ", second mesh = " << abs(volume2));
