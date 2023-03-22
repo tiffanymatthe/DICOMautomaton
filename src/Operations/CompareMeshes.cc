@@ -120,7 +120,7 @@ bool CompareMeshes(Drover &DICOM_data,
     }
     vec3 centroid1 = vec3(sumx/size(mesh1->meshes.vertices) , sumy/size(mesh1->meshes.vertices) , sumz/size(mesh1->meshes.vertices));
 
-    sumx =0, sumy=0 , sumz = 0;
+    sumx = 0, sumy= 0, sumz = 0;
     for (auto& vertex : mesh2->meshes.vertices) {
         sumx += vertex.x;
         sumy += vertex.y;
@@ -130,7 +130,7 @@ bool CompareMeshes(Drover &DICOM_data,
 
     const double centroid_shift = sqrt(pow((centroid2.x-centroid1.x),2) + pow((centroid2.y-centroid1.y),2) + pow((centroid2.y-centroid1.y),2));
     
-    //Converting to a traingular mesh to ensure that each face is made up of 3 vertices for volume calculation
+    //Converting to a triangular mesh to ensure that each face is made up of 3 vertices for volume calculation
     //Total volume is calculated by summing the signed volme of the triganular prism made by each face and the origin as the apex.
     //This method returns a finite volume even if the mesh is open, so watertightness needs to be checked separately.
 
