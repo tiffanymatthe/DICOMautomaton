@@ -111,7 +111,7 @@ bool CompareMeshes(Drover &DICOM_data,
     }
 
     // Calculate centroids by finding the average of all the vertices in the surface mesh
-    //Assumes that contours vertices are distributed evenly on the surface mesh, which is not 
+    //Assumes that contours vertices are distributed evenly on the surface mesh which is not strictly true.
     double sumx = 0, sumy = 0, sumz = 0;
     for (auto& vertex : mesh1->meshes.vertices) {
         sumx += vertex.x;
