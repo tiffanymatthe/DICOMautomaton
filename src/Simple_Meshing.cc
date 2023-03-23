@@ -62,11 +62,17 @@ class node {
         }
 };
 
+/*
+ * Convert top and bottom paths to not be overlapping by swapping sections
+ *
+ * path_top: top path to modify
+ * path_bottom: bottom path to modify
+ */
 void convert_nonoverlapping(
-        std::vector<size_t>& path_i, std::vector<size_t>& path_j){
-    for(size_t k = 0; k < path_i.size(); ++k){
-        if(path_i[k] > path_j[k]){
-            std::swap(path_i[k], path_j[k]);
+        std::vector<size_t>& path_top, std::vector<size_t>& path_bottom){
+    for(size_t k = 0; k < path_top.size(); ++k){
+        if(path_top[k] > path_bottom[k]){
+            std::swap(path_top[k], path_bottom[k]);
         }
     }
 }
@@ -89,8 +95,10 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
 
     size_t m = nodes.size()/2, n = nodes[0].size();
 
+    convert_nonoverlapping(path_top, path_bottom);
+
     // i, j, distance
-    std::vector<std::vector<double>> distances(m, 
+    std::vector<std::vector<double>> distances(2*m, 
             std::vector<double>(n, std::numeric_limits<double>::max()));
 
     // Current minimum distance among nodes
@@ -101,34 +109,37 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
     
 
     // Loop to get distances of each relevant node
-    while(min_dist.top().second.first != 2*k && min_dist.top().second.second != n-1){
+    while(!min_dist.empty() && (min_dist.top().second.first != m + k || min_dist.top().second.second != n-1)){
         auto [i, j] = min_dist.top().second;
+        min_dist.pop();
+
+        // Bottom of the current path
+        // Since we only directly get the top, have to compute this
+        size_t bottom = j == n-1 ? m+k : path_bottom[j+1];
         // Traverse next nodes and set their distances based on current
         // Try down
         // k instead of n because we can't go past endpoint
-        if(i+1 < 2*k && i+1 >= path_top[j] && i+1 <= path_bottom[j]){
+        if(i+1 <= m + k && i+1 >= path_top[j] && i+1 <= bottom){
             distances[i+1][j] = std::min(distances[i][j] + nodes[i][j].wA, distances[i+1][j]);
             min_dist.push({distances[i+1][j], {i+1, j}});
         }
         // Try right
-        if(j+1 < n && i >= path_top[j+1] && i <= path_bottom[j+1]){
+        if(j+1 < n && i >= path_top[j+1] && i <= bottom){
             distances[i][j+1] = std::min(distances[i][j] + nodes[i][j].wB, distances[i][j+1]);
             min_dist.push({distances[i][j+1], {i, j+1}});
         }
-
-        min_dist.pop();
     }
 
     // Reconstruct best path
     std::vector<size_t> ret(n);
     ret[0] = k;
 
-    for(size_t j = n-1, i = 2*k; j > 0; ++j){
-        while(i > 0 && distances[i-1][j] >= distances[i][j-1]) --i;
+    for(size_t j = n-1, i = m + k; j > 0; --j){
+        while(i > 0 && distances[i-1][j] <= distances[i][j-1]) --i;
         ret[j] = i;
     }
     // Cost of path is length to end node
-    return {ret, distances[2*k][n-1]};
+    return {ret, distances[m + k][n-1]};
 }
 
 /*
@@ -142,7 +153,7 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
  *
  * returns (minimal path, cost of minimal path)
  */
-std::pair<std::vector<size_t>, unsigned int> 
+std::pair<std::vector<size_t>, double> 
 paths_between(std::vector<std::vector<node>> nodes, size_t i, size_t j, 
         std::vector<size_t>& path_i, std::vector<size_t>& path_j){
     // If we're at something of length 2 or less, stop recursion
@@ -203,6 +214,61 @@ std::vector<size_t> all_paths(std::vector<std::vector<node>>& nodes){
     }
     else {
         return path_between;
+    }
+}
+
+/*
+ * Quick and dirty way of visualizing graphs with a colored path, this is purely for
+ * debugging and definitey isn't the most elegantly written, but the output looks pretty
+ */
+void print_path(std::vector<std::vector<node>> nodes, std::vector<size_t> path){
+    printf("Path: ");
+    for(size_t p : path){
+        printf("%zu  ", p);
+    }
+    printf("\n");
+
+    path.push_back(path[0] + nodes.size()/2);
+    const char* white = "\033[0;37m";
+    const char* green = "\033[0;32m";
+    
+    for(size_t i = 0; i < nodes.size(); ++i){
+        for(size_t j = 0; j < nodes[0].size(); ++j){
+            const char* c_node;
+            if(i >= path[j] && i <= path[j+1]){
+                c_node = green;
+            } else c_node = white;
+            const char* c_edge;
+            if(i >= path[j] && i == path[j+1] && j < nodes[0].size()-1){
+                c_edge = green;
+            } else c_edge = white;
+            printf("-- %so%s --%-6.2lf%s", c_node, c_edge, nodes[i][j].wB, white);
+        }
+        printf("\n");
+        for(size_t j = 0; j < nodes[0].size(); ++j){
+            const char* c;
+            if(i >= path[j] && i < path[j+1] && path[j] != path[j+1]){
+                c = green;
+            } else c = white;
+            printf("   %s|%s         ", c, white);
+        }
+        printf("\n");
+        for(size_t j = 0; j < nodes[0].size(); ++j){
+            const char* c;
+            if(i >= path[j] && i < path[j+1] && path[j] != path[j+1]){
+                c = green;
+            } else c = white;
+            printf("   %s%-6.2lf%s    ", c, nodes[i][j].wA, white);
+        }
+        printf("\n");
+        for(size_t j = 0; j < nodes[0].size(); ++j){
+            const char* c;
+            if(i >= path[j] && i < path[j+1] && path[j] != path[j+1]){
+                c = green;
+            } else c = white;
+            printf("   %s|%s         ", c, white);
+        }
+        printf("\n");
     }
 }
 
