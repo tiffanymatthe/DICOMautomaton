@@ -124,7 +124,7 @@ do
   # echo "$HD1"
   # echo "$HD2"
 
-  printf "| %-20s | %-13.3f | %-13.3f | %-15.3f | %-15.3f | %-10.3f | %-15.3f | %-15.3f | %-10.3f |\n" $shape_label $HD1 $HD2 $SA1 $SA2 $SA_DIFF $V1 $V2 $V_DIFF
+  printf "| %-20s | %-13.3f | %-13.3f | %-15.3f | %-15.3f | %-10.3f | %-15.3f | %-15.3f | %-10.3f |\n\n" $shape_label $HD1 $HD2 $SA1 $SA2 $SA_DIFF $V1 $V2 $V_DIFF
 
 
   # echo "Finished computing differences for $shape"
