@@ -282,11 +282,13 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             for(const auto &p_A : A.get().points){
                 if(!B.get().Is_Point_In_Polygon_Projected_Orthogonally(pln_B, p_A)){
                     a_in_b = false;
+                    break;
                 }
             }
             for(const auto &p_B : B.get().points){
                 if(!A.get().Is_Point_In_Polygon_Projected_Orthogonally(pln_A, p_B)){
                     b_in_a = false;
+                    break;
                 }
             }
 
