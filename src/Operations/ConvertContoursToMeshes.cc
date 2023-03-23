@@ -148,6 +148,65 @@ OperationDoc OpArgDocConvertContoursToMeshes(){
     return out;
 }
 
+// rotates such that it is parallel to xy plane
+void RotateContour(contour_of_points<double> &cop, const vec3<double> &normal) {
+    // implement
+};
+
+// https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
+vec3<double> NextToTop(std::stack<vec3<double>> &s) {
+    auto p = s.top();
+    s.pop();
+    auto res = s.top();
+    s.push(p);
+    return res;
+}
+
+void swap(vec3<double> &p1, vec3<double> &p2) {
+    auto temp = p1;
+    p1 = p2;
+    p2 = temp;
+}
+
+int orientation(vec3<double> p, vec3<double> q, vec3<double> r) {
+    int val = (q.y - p.y) * (r.x - q.x) -
+              (q.x - p.x) * (r.y - q.y);
+    if (val == 0) return 0; // collinear
+    return (val > 0)? 1 : 2; //CW or CCW
+}
+
+// int compare(const void *vp1, const void *vp2)
+// {
+//    vec3<double> *p1 = (vec3<double> *)vp1;
+//    vec3<double> *p2 = (vec3<double> *)vp2;
+ 
+//    // Find orientation
+//    int o = orientation(p0, *p1, *p2);
+//    if (o == 0)
+//      return ((p2->distance(p0))^2 >= (p1->distance(p0))^2)? -1 : 1;
+ 
+//    return (o == 2)? -1: 1;
+// }
+
+// returns contour of points of convex hull
+contour_of_points<vec3<double>> Contour_from_Convex_Hull_2(contour_of_points<double> cop, const vec3<double> &normal){
+    RotateContour(cop, normal);
+
+    // find the point with the smallest y, or most left (if tie)
+    // want to create a list of pointers (to each vec, which can be reordered)
+
+    auto points 
+    std::vector<int> indices;
+
+    for (auto &point : cop.points) {
+        cop_pointers.emplace_back(*point);
+    }
+
+    auto ymin = cop.points;
+
+    RotateContour(cop, normal); // need to invert
+}
+
 
 
 bool ConvertContoursToMeshes(Drover &DICOM_data,
@@ -288,6 +347,22 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             auto l_cops = locate_contours_on_plane(*l_cp_it);
             if( (l_cops.size() == 0) && (m_cops.size() == 0) ){
                 throw std::logic_error("Unable to find any contours on contour plane.");
+            }
+
+            YLOGINFO("getting points" << m_cops.size());
+            auto points = m_cops.front().get().points;
+            YLOGINFO("got points");
+            std::vector<vec3<double>> vertices(points.size());
+            std::copy(points.begin(), points.end(), vertices.begin());
+            using vert_vec_t = decltype(std::begin(vertices));
+            YLOGINFO("Making convex hull");
+            auto faces = Convex_Hull_3<vert_vec_t,uint64_t>( std::begin(vertices),
+                                                          std::end(vertices) );
+
+            YLOGINFO("HEREREEREREERERE");
+            YLOGINFO(faces.size());
+            for (auto f : faces) {
+                YLOGINFO("Face has size" << f.size());
             }
 
             // Eliminate overlapping contours on both planes.
