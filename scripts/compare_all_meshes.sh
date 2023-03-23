@@ -54,7 +54,7 @@ declare -a shape_labels=("Sphere(10)" "aa_box(1.0,2.0,4.0)" "tri-force" "chamfer
 declare -a shapes=("Sphere(10)" "aa_box(1.0,2.0,4.0)" "$tri_force_shape" "chamfer_subtract(2.0){aa_box(8.0,20.0,20.0);sphere(12.0);}")
 declare -a resolutions=("$default_res" "0.25,0.25,0.75" "0.25,0.25,0.75" "$default_res")
 
-printf "| %-20s | %-13s | %-13s | %-15s | %-15s | %-10s | %-15s | %-15s | %-10s| \n" Shape "Hausdorff 1" "Hausdorff 2" "Surface Area 1" "Aurface Area 2" "Area Diff" "Volume 1" "Volume 2" "Volume Diff"
+printf "| %-20s | %-13s | %-13s | %-15s | %-15s | %-10s | %-15s | %-15s | %-10s| \n\n" Shape "Hausdorff 1" "Hausdorff 2" "Surface Area 1" "Aurface Area 2" "Area Diff" "Volume 1" "Volume 2" "Volume Diff"
 
 for i in ${!shapes[@]}
 do
