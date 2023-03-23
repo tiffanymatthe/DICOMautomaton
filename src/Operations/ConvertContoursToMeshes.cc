@@ -274,6 +274,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             auto l_cp_it = std::prev(m_cp_it);
             auto h_cp_it = std::next(m_cp_it);
 
+            bool cap_roof_of_m_cops = false;
+
             if(l_cp_it == std::cend(ucps)){
                 continue;
             }else if(l_cp_it != std::cend(ucps)){
@@ -281,8 +283,11 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 if((1.5 * contour_sep) < l_cp_dist) l_cp_it = std::cend(ucps);
             }
             if(h_cp_it != std::cend(ucps)){
-               const auto h_cp_dist = std::abs(m_cp_it->Get_Signed_Distance_To_Point(h_cp_it->R_0));
-               if((1.5 * contour_sep) < h_cp_dist) h_cp_it = std::cend(ucps);
+                const auto h_cp_dist = std::abs(m_cp_it->Get_Signed_Distance_To_Point(h_cp_it->R_0));
+                if((1.5 * contour_sep) < h_cp_dist) {
+                    h_cp_it = std::cend(ucps);
+                    cap_roof_of_m_cops = true;
+                }
             }
 
             auto l_cops = locate_contours_on_plane(*l_cp_it);
@@ -536,7 +541,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 }                
             }
 
-            if (h_cp_it == std::cend(ucps)) {
+            if (cap_roof_of_m_cops) {
                 for (auto &cop : m_cops) {
                     close_hole_in_roof(cop);
                 }
