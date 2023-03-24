@@ -185,7 +185,7 @@ elif [[ "${DISTRIBUTION}" =~ .*debian.* ]] ; then
           -DDCMA_VERSION="${DCMA_VERSION}" \
           -DCMAKE_INSTALL_PREFIX="${INSTALLPREFIX}" \
           -DCMAKE_INSTALL_SYSCONFDIR="/etc" \
-          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_BUILD_TYPE=Debug \
           -DMEMORY_CONSTRAINED_BUILD=OFF \
           -DWITH_ASAN=OFF \
           -DWITH_TSAN=OFF \
@@ -235,7 +235,7 @@ else  # Generic build and install.
       -DDCMA_VERSION="${DCMA_VERSION}" \
       -DCMAKE_INSTALL_PREFIX="${INSTALLPREFIX}" \
       -DCMAKE_INSTALL_SYSCONFDIR="/etc" \
-      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_BUILD_TYPE=Debug \
       -DMEMORY_CONSTRAINED_BUILD=OFF \
       -DWITH_ASAN=OFF \
       -DWITH_TSAN=OFF \

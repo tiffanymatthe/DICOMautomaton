@@ -274,8 +274,7 @@ void print_path(std::vector<std::vector<node>> nodes, std::vector<size_t> path){
 
 // Method taken from here: 
 // https://www.cs.jhu.edu/~misha/Fall13b/Papers/Fuchs77.pdf
-std::vector< std::array<size_t, 3> >
-Tile_Contours_Graph(
+std::vector< std::array<size_t, 3> > Tile_Contours(
         std::reference_wrapper<contour_of_points<double>> A,
         std::reference_wrapper<contour_of_points<double>> B ){
 
@@ -316,7 +315,7 @@ Tile_Contours_Graph(
         }else{
             YLOGWARN("Ignoring adjacent contours with opposite orientations. Recursing..");
             std::reverse( std::begin(contour_B.points), std::end(contour_B.points) );
-            auto faces = Tile_Contours_Graph(A, std::ref(contour_B) );
+            auto faces = Tile_Contours(A, std::ref(contour_B) );
 
             for(auto &face_arr: faces){
                 for(auto &v_i : face_arr){
@@ -336,7 +335,6 @@ Tile_Contours_Graph(
 
     // Keep track of where we are looping over points
     auto iter_A = std::begin(contour_A.points);
-    auto iter_B = std::begin(contour_B.points);
 
     // const convenience iterators
     const auto begin_A = std::begin(contour_A.points);
@@ -344,9 +342,12 @@ Tile_Contours_Graph(
     const auto end_A = std::end(contour_A.points);
     const auto end_B = std::end(contour_B.points);
 
+    printf("Generating graph");
+
     auto p_i_next = *iter_A;
+    iter_A = std::next(iter_A);
     // We repeat over A twice, since to search the graph we need to search repeats
-    for(size_t i = 0; i < 2 * N_A; ++i, iter_A = std::next(iter_A)){
+    for(size_t i = 0; i < 2 * N_A; ++i, ++iter_A){
 
         auto p_i = p_i_next;
         // If at end of iterator loop back to beginning
@@ -355,8 +356,10 @@ Tile_Contours_Graph(
 
         nodes.push_back(std::vector<node>());
 
+        auto iter_B = std::begin(contour_B.points);
         auto p_j_next = *iter_B;
-        for(size_t j = 0; j < N_B; ++j, iter_B = std::next(iter_B)){
+        iter_B = std::next(iter_B);
+        for(size_t j = 0; j < N_B; ++j, ++iter_B){
 
             auto p_j = p_j_next;
             // If at end of iterator loop back to beginning
@@ -366,8 +369,13 @@ Tile_Contours_Graph(
         }
     }
 
-    // TODO: graph search here
-    std::vector<size_t> optimal_path(N_B);
+    printf("Starting graph search");
+
+    // Execute shortest path graph search
+    std::vector<size_t> optimal_path = all_paths(nodes);
+
+    // For debugging, don't use this for dense graphs as it will print a lot to stdout
+    print_path(nodes, optimal_path);
 
     std::vector<std::array<size_t, 3>> ret;
 

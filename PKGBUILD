@@ -75,7 +75,7 @@ build() {
     -DDCMA_VERSION="${DCMA_VERSION}" \
     -DCMAKE_INSTALL_PREFIX="${install_prefix}" \
     -DCMAKE_INSTALL_SYSCONFDIR=/etc \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_TYPE=Debug \
     -DMEMORY_CONSTRAINED_BUILD=OFF \
     -DWITH_ASAN=OFF \
     -DWITH_TSAN=OFF \

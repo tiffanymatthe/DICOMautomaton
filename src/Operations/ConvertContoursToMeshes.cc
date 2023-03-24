@@ -489,7 +489,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     for(const auto &cop_refw : pcs.lower) close_hole_in_roof(cop_refw);
 
                 }else if( (N_upper == 1) && (N_lower == 1) ){
-                    auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
+                    /* auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front()); */
+                    auto new_faces = Tile_Contours(pcs.upper.front(), pcs.lower.front());
 
                     const auto old_face_count = amesh.vertices.size();
                     for(const auto &p : pcs.upper.front().get().points) amesh.vertices.emplace_back(p);
