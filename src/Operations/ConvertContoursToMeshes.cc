@@ -148,9 +148,23 @@ OperationDoc OpArgDocConvertContoursToMeshes(){
     return out;
 }
 
-// rotates such that it is parallel to xy plane
+// rotates such that the contour points lie in the XY plane
 void RotateContour(contour_of_points<double> &cop, const vec3<double> &normal) {
-    // implement
+    auto unitNormContour = normal.unit();
+    vec3<double> unitNormDesired = vec3<double>(0,0,1);
+    if (unitNormDesired == unitNormContour){return;};
+
+    //obtaining R matrix as described here https://math.stackexchange.com/a/2672702
+    num_array<double> I = num_array<double>().identity(3);
+    auto k = (unitNormContour + unitNormDesired)/2;
+    auto K = k.to_num_array();
+    auto scale = 2/(K.transpose()*K).read_coeff(0,0);
+    auto R = K*K.transpose()*=(scale);
+    R = R -I;
+    
+    for (auto &point : cop.points) {
+        point = (R*point.to_num_array()).hnormalize_to_vec3();
+    }
 };
 
 // https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
