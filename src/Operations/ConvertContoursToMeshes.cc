@@ -148,8 +148,11 @@ OperationDoc OpArgDocConvertContoursToMeshes(){
     return out;
 }
 
-// rotates such that the contour points lie in the XY plane
+// rotates a contour such that all the contour points lie in the XY plane
+// and the contour normal is parallel to the z-axis
 void RotateContour(contour_of_points<double> &cop, const vec3<double> &normal) {
+    //The rotation matrix R that rotates the contour normal to the direction of
+    //the z-axis can be applied to all the contour points to move them to the XY plane
     auto unitNormContour = normal.unit();
     vec3<double> unitNormDesired = vec3<double>(0,0,1);
     if (unitNormDesired == unitNormContour){return;};
@@ -162,6 +165,7 @@ void RotateContour(contour_of_points<double> &cop, const vec3<double> &normal) {
     auto R = K*K.transpose()*=(scale);
     R = R -I;
     
+    //apply rotation to all points
     for (auto &point : cop.points) {
         point = (R*point.to_num_array()).hnormalize_to_vec3();
     }
