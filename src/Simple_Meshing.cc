@@ -92,6 +92,7 @@ void convert_nonoverlapping(
 std::pair<std::vector<size_t>, double> 
 single_path(std::vector<std::vector<node>>& nodes, size_t k,
         std::vector<size_t>& path_top, std::vector<size_t>& path_bottom){
+    /* printf("Finding optimal path for %zu\n", k); */
 
     size_t m = nodes.size()/2, n = nodes[0].size();
 
@@ -100,6 +101,8 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
     // i, j, distance
     std::vector<std::vector<double>> distances(2*m, 
             std::vector<double>(n, std::numeric_limits<double>::max()));
+
+    std::set<std::pair<size_t, size_t>> visited = {};
 
     // Current minimum distance among nodes
     typedef std::pair<double, std::pair<size_t, size_t>> node_dist;
@@ -112,6 +115,8 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
     while(!min_dist.empty() && (min_dist.top().second.first != m + k || min_dist.top().second.second != n-1)){
         auto [i, j] = min_dist.top().second;
         min_dist.pop();
+        /* printf("%zu, %zu\n", i, j); */
+        if(i == m+k && j == n-1) break;
 
         // Bottom of the current path
         // Since we only directly get the top, have to compute this
@@ -119,14 +124,16 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
         // Traverse next nodes and set their distances based on current
         // Try down
         // k instead of n because we can't go past endpoint
-        if(i+1 <= m + k && i+1 >= path_top[j] && i+1 <= bottom){
+        if(i+1 <= m + k && i+1 >= path_top[j] && i+1 <= bottom && !visited.count({i+1, j})){
             distances[i+1][j] = std::min(distances[i][j] + nodes[i][j].wA, distances[i+1][j]);
             min_dist.push({distances[i+1][j], {i+1, j}});
+            visited.insert({i+1, j});
         }
         // Try right
-        if(j+1 < n && i >= path_top[j+1] && i <= bottom){
+        if(j+1 < n && i >= path_top[j+1] && i <= bottom && !visited.count({i, j+1})){
             distances[i][j+1] = std::min(distances[i][j] + nodes[i][j].wB, distances[i][j+1]);
             min_dist.push({distances[i][j+1], {i, j+1}});
+            visited.insert({i, j+1});
         }
     }
 
@@ -154,8 +161,9 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
  * returns (minimal path, cost of minimal path)
  */
 std::pair<std::vector<size_t>, double> 
-paths_between(std::vector<std::vector<node>> nodes, size_t i, size_t j, 
+paths_between(std::vector<std::vector<node>>& nodes, size_t i, size_t j, 
         std::vector<size_t>& path_i, std::vector<size_t>& path_j){
+    /* printf("Finding paths between %zu and %zu\n", i, j); */
     // If we're at something of length 2 or less, stop recursion
     if(j-i < 2) return {std::vector<size_t>(), std::numeric_limits<double>::max()};
     size_t k = (i + j) / 2;
@@ -342,57 +350,78 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
     const auto end_A = std::end(contour_A.points);
     const auto end_B = std::end(contour_B.points);
 
-    printf("Generating graph");
-
     auto p_i_next = *iter_A;
     iter_A = std::next(iter_A);
+
+    size_t m = N_A - 1;
+    size_t n = N_B - 1;
+
+    printf("Setting up graph\n");
+
     // We repeat over A twice, since to search the graph we need to search repeats
-    for(size_t i = 0; i < 2 * N_A; ++i, ++iter_A){
+    // Don't loop over all points since last point is repeat of first
+    for(size_t i = 0; i < 2 * m; ++i, ++iter_A){
 
         auto p_i = p_i_next;
         // If at end of iterator loop back to beginning
-        p_i_next = iter_A == end_A ? *begin_A : *iter_A;
-        if(iter_A == end_A) iter_A = begin_A;
+        if(std::next(iter_A) == end_A) iter_A = begin_A;
+        p_i_next = *iter_A;
 
         nodes.push_back(std::vector<node>());
 
         auto iter_B = std::begin(contour_B.points);
         auto p_j_next = *iter_B;
         iter_B = std::next(iter_B);
-        for(size_t j = 0; j < N_B; ++j, ++iter_B){
+        for(size_t j = 0; j < n; ++j, ++iter_B){
 
             auto p_j = p_j_next;
             // If at end of iterator loop back to beginning
             p_j_next = iter_B == end_B ? *begin_B : *iter_B;
 
-            nodes[i].push_back(node(i % N_A, j, p_i, p_j, p_i_next, p_j_next));
+            nodes[i].push_back(node(i % m, j, p_i, p_j, p_i_next, p_j_next));
         }
     }
 
-    printf("Starting graph search");
+    printf("Finding Optimal path, m=%zu, n=%zu\n", m, n);
 
     // Execute shortest path graph search
     std::vector<size_t> optimal_path = all_paths(nodes);
 
+    printf("Optimal path found\n");
+
     // For debugging, don't use this for dense graphs as it will print a lot to stdout
-    print_path(nodes, optimal_path);
+    /* print_path(nodes, optimal_path); */
 
     std::vector<std::array<size_t, 3>> ret;
+    std::vector<std::array<size_t, 3>> ret1;
 
     // Reconstruct paths
-    for(size_t j = 0; j < N_B; ++j){
-        size_t end_i = (j == N_B-1 ? optimal_path[0] + N_A :optimal_path[j+1]);
-        for(size_t i = optimal_path[j];
-                i < end_i;
-                ++i){
+    for(size_t j = 0; j < n; ++j){
+        size_t end_i = (j == n - 1 ? optimal_path[0] + m : optimal_path[j+1]);
+        for(size_t i = optimal_path[j]; i < end_i + 1; ++i){
             // If end then the next node is to the right, otherwise down
+            // On last column we can't go right any more so skip
             size_t next_index;
-            if(i < end_i-1) next_index = nodes[i+1][j].iA;
-            else next_index = nodes[i][j+1].iB;
+            size_t next_index1;
 
-            ret.push_back({nodes[i][j].iA, nodes[i][j].iB+N_B, next_index});
+            if(i < end_i-1) next_index = nodes[i+1][j].iA, next_index1=i+1;
+            else if(j == n-1) continue;
+            else next_index = nodes[i][j+1].iB + N_A, next_index1=j+1;
+
+            ret.push_back({nodes[i][j].iA, nodes[i][j].iB + N_A, next_index});
+            ret1.push_back({i, j, next_index1});
         }
     }
+    printf("m: %zu, n: %zu\n\n", m, n);
+    for(auto a : ret){
+        printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]);
+    }
+    printf("\n\n");
+
+    for(auto a : ret1){
+        printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]);
+    }
+    printf("\n");
     
     return ret;
     
@@ -916,6 +945,11 @@ YLOGWARN("Terminated meshing early. Mesh may be incomplete.");
     }
     ////////////////////////////////
 */
+
+    for(auto a : faces){
+        printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]);
+    }
+    printf("\n");
 
     return faces;
 }
