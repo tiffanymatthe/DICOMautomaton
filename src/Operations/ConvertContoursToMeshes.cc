@@ -668,40 +668,40 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             //check areas to determine which the inner and outer contours are on both planes
 
                             //assume 2nd contour is the inner to begin with
-                            const auto upper_inner = pcs.upper.back();
-                            const auto upper_outer = pcs.upper.front();
+                            auto upper_inner = pcs.upper.back();
+                            auto upper_outer = pcs.upper.front();
 
                             auto contour = std::begin(pcs.upper);
-                            const auto c1_area = std::abs(contour->get().Get_Signed_Area());
+                            auto c1_area = std::abs(contour->get().Get_Signed_Area());
                             YLOGINFO("c1" << c1_area);
                             ++contour;
-                            const auto c2_area = std::abs(contour->get().Get_Signed_Area());
+                            auto c2_area = std::abs(contour->get().Get_Signed_Area());
                             YLOGINFO("c2:"<< c2_area);
 
                             if (c1_area < c2_area){
-                                const auto upper_inner = pcs.upper.front();
-                                const auto upper_outer = pcs.upper.back();
+                                upper_inner = pcs.upper.front();
+                                upper_outer = pcs.upper.back();
                             }
 
                             //do the same for the lower plane
-                            const auto lower_inner = pcs.lower.back();
-                            const auto lower_outer = pcs.lower.front();
+                            auto lower_inner = pcs.lower.back();
+                            auto lower_outer = pcs.lower.front();
 
-                            auto contour = std::begin(pcs.lower);
-                            const auto c1_area = std::abs(contour->get().Get_Signed_Area());
+                            contour = std::begin(pcs.lower);
+                            c1_area = std::abs(contour->get().Get_Signed_Area());
                             YLOGINFO("c1(lower):" << c1_area);
                             ++contour;
-                            const auto c2_area = std::abs(contour->get().Get_Signed_Area());
+                            c2_area = std::abs(contour->get().Get_Signed_Area());
                             YLOGINFO("c2(lower):"<< c2_area);
 
                             if (c1_area < c2_area){
-                                const auto lower_inner = pcs.lower.front();
-                                const auto lower_outer = pcs.lower.back();
+                                lower_inner = pcs.lower.front();
+                                lower_outer = pcs.lower.back();
                             }
 
                             //connect inner cotours together and outer contours together
                             auto new_faces = Estimate_Contour_Correspondence(lower_inner, upper_inner);
-                            const auto old_face_count = amesh.vertices.size();
+                            auto old_face_count = amesh.vertices.size();
 
                             for(const auto &p : upper_inner.get().points) amesh.vertices.emplace_back(p);
                             for(const auto &p : lower_inner.get().points) amesh.vertices.emplace_back(p);
@@ -712,8 +712,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                             }
 
-                            auto new_faces = Estimate_Contour_Correspondence(lower_outer, upper_outer);
-                            const auto old_face_count = amesh.vertices.size();
+                            new_faces = Estimate_Contour_Correspondence(lower_outer, upper_outer);
+                            old_face_count = amesh.vertices.size();
 
                             for(const auto &p : upper_outer.get().points) amesh.vertices.emplace_back(p);
                             for(const auto &p : lower_outer.get().points) amesh.vertices.emplace_back(p);
