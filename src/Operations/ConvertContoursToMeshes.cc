@@ -530,6 +530,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
 
                 }else if( (N_upper == 0) && (N_lower == 1) ){
+                    //why is this cond not N_lower != 1
                     for(const auto &cop_refw : pcs.lower) close_hole_in_roof(cop_refw);
 
                 }else if( (N_upper == 1) && (N_lower == 1) ){
@@ -546,20 +547,45 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     }
                 }else if( (N_upper == 2) && (N_lower == 1) ){
                     //check if the upper plane contains enclosed contours
-                    if (projected_contours_overlap(*m_cp_it, pcs.upper.front(),*m_cp_it,pcs.upper.back())
-                        && !projected_contours_intersect(*m_cp_it, pcs.upper.front(),*m_cp_it,pcs.upper.back())){
+                    if (projected_contours_overlap(*m_cp_it, pcs.upper.front(),*m_cp_it, pcs.upper.back())
+                        && !projected_contours_intersect(*m_cp_it, pcs.upper.front(),*m_cp_it, pcs.upper.back())){
                         YLOGINFO("Enclosed contour in top plane");
-                        const auto u = &pcs.upper.front();
+                        //get contour areas to determine which contour is enclosed by the other
                         auto contour = std::begin(pcs.upper);
                         const auto c1_area = std::abs(contour->get().Get_Signed_Area());
                         YLOGINFO("c1" << c1_area);
                         ++contour;
                         const auto c2_area = std::abs(contour->get().Get_Signed_Area());
                         YLOGINFO("c2:"<< c2_area);
+
+                        //cap the smaller contour and tile the larger contoour with the lower plane contour
                         if  (c1_area < c2_area){
                             YLOGINFO("C1 is enclosed");
+                            close_hole_in_floor(pcs.upper.front());
+                            YLOGINFO("Capped");
+                            auto new_faces = Estimate_Contour_Correspondence(pcs.upper.back(), pcs.lower.front());
+                            const auto old_face_count = amesh.vertices.size();
+                            for(const auto &p : pcs.upper.back().get().points) amesh.vertices.emplace_back(p);
+                            for(const auto &p : pcs.lower.front().get().points) amesh.vertices.emplace_back(p);
+                            for(const auto &fs : new_faces){
+                                const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
+                                const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
+                                const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
+                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
+                    }
                         }else{
                             YLOGINFO("C2 is enclosed");
+                            close_hole_in_floor(pcs.upper.back());
+                            YLOGINFO("Capped");
+                            auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
+                            const auto old_face_count = amesh.vertices.size();
+                            for(const auto &p : pcs.upper.front().get().points) amesh.vertices.emplace_back(p);
+                            for(const auto &p : pcs.lower.front().get().points) amesh.vertices.emplace_back(p);
+                            for(const auto &fs : new_faces){
+                                const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
+                                const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
+                                const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
+                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                         }
                     }
 
