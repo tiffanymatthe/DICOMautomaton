@@ -544,7 +544,35 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
                         amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                     }
-                }else{
+                }else if( (N_upper == 2) && (N_lower == 1) ){
+                    //check if the upper plane contains enclosed contours
+                    if (projected_contours_overlap(*m_cp_it, pcs.upper.front(),*m_cp_it,pcs.upper.back())
+                        && !projected_contours_intersect(*m_cp_it, pcs.upper.front(),*m_cp_it,pcs.upper.back())){
+                        YLOGINFO("Enclosed contour in top plane");
+                        const auto u = &pcs.upper.front();
+                        auto contour = std::begin(pcs.upper);
+                        const auto c1_area = std::abs(contour->get().Get_Signed_Area());
+                        YLOGINFO("c1" << c1_area);
+                        ++contour;
+                        const auto c2_area = std::abs(contour->get().Get_Signed_Area());
+                        YLOGINFO("c2:"<< c2_area);
+                        if  (c1_area < c2_area){
+                            YLOGINFO("C1 is enclosed");
+                        }else{
+                            YLOGINFO("C2 is enclosed");
+                        }
+                    }
+
+                
+                }else if( (N_upper == 1) && (N_lower == 2) ){
+                    if (projected_contours_overlap(*l_cp_it, pcs.lower.front(),*m_cp_it,pcs.lower.back())
+                        && !projected_contours_intersect(*l_cp_it, pcs.lower.front(),*m_cp_it,pcs.lower.back())){
+                        YLOGINFO("Enclosed contour in bottom plane");
+                    }
+
+                
+                }
+                else{
                     //YLOGINFO("Performing N-to-N meshing..");
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
