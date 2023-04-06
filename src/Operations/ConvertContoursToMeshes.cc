@@ -712,25 +712,28 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                             }
 
-                            new_faces = Estimate_Contour_Correspondence(lower_outer, upper_outer);
-                            old_face_count = amesh.vertices.size();
+                            // new_faces = Estimate_Contour_Correspondence(lower_outer, upper_outer);
+                            // old_face_count = amesh.vertices.size();
 
-                            for(const auto &p : upper_outer.get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &p : lower_outer.get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &fs : new_faces){
-                               const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
-                               const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
-                               const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
-                               amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
-                            }
+                            // for(const auto &p : upper_outer.get().points) amesh.vertices.emplace_back(p);
+                            // for(const auto &p : lower_outer.get().points) amesh.vertices.emplace_back(p);
+                            // for(const auto &fs : new_faces){
+                            //    const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
+                            //    const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
+                            //    const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
+                            //    amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
+                            // }
 
-                            YLOGINFO("Tiled two-to-two");
+                            // YLOGINFO("Tiled two-to-two");
                         
                             //move to next iteration of for loop since we have tiled it
                             continue;
                         }
 
                     }
+
+                    YLOGINFO("DIDNT CONTINUE LIKE I WAS MEANT TO");
+
 
                     auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                     auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
