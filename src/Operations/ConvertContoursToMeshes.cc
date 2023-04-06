@@ -565,27 +565,19 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             YLOGINFO("Capped");
                             auto new_faces = Estimate_Contour_Correspondence(pcs.upper.back(), pcs.lower.front());
                             const auto old_face_count = amesh.vertices.size();
-                            for(const auto &p : pcs.upper.back().get().points) amesh.vertices.emplace_back(p);
+
+                            for(const auto &p : pcs.upper.front().get().points) amesh.vertices.emplace_back(p);
                             for(const auto &p : pcs.lower.front().get().points) amesh.vertices.emplace_back(p);
                             for(const auto &fs : new_faces){
-                                const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
-                                const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
-                                const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
-                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
-                    }
+                               const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
+                               const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
+                               const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
+                               amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
+                            }
                         }else{
                             YLOGINFO("C2 is enclosed");
                             close_hole_in_floor(pcs.upper.back());
                             YLOGINFO("Capped");
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
-                            const auto old_face_count = amesh.vertices.size();
-                            for(const auto &p : pcs.upper.front().get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &p : pcs.lower.front().get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &fs : new_faces){
-                                const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
-                                const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
-                                const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
-                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                         }
                     }
 
