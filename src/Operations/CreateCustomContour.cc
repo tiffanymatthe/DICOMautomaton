@@ -3,7 +3,6 @@
 
 #include <list>
 #include <map>
-#include <std::string>
 
 #include "../Structs.h"
 #include "YgorLog.h"
