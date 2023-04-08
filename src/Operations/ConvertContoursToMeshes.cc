@@ -525,9 +525,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             };
 
             // Estimate connectivity and append triangles.
-            int32_t pairing_index = 0;
             for(auto &pcs : pairings){
-                const auto size = pairings.size();
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
                 //YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
@@ -796,10 +794,9 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
                         amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                     }
-                }   
-                pairing_index++;             
+                }               
             }
-
+            //caps contours that have no corresponding contours on the lower plane
             if (cap_roof_of_m_cops) {
                 for (auto &cop : m_cops) {
                     YLOGINFO("I AM THE CULPRIT 3");
