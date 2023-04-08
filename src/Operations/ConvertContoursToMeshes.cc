@@ -473,11 +473,9 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 for(const auto &p : pairs){
                     pairings.emplace_back();
                     for(const auto &u : p.upper){
-                        YLOGINFO("upper" << static_cast<long>(u));
                         pairings.back().upper.emplace_back( *std::next( std::begin(m_cops), u ) );
                     }
                     for(const auto &l : p.lower){
-                        YLOGINFO("lower" << static_cast<long>(l));
                         pairings.back().lower.emplace_back( *std::next( std::begin(l_cops), l ) );
                     }
                 }
@@ -689,7 +687,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     }
 
                 }else{
-                    YLOGINFO("Performing N-to-N meshing..");
+                    //YLOGINFO("Performing N-to-N meshing..");
 
                     //routine for hollow structures with an inner contour and an outer contour on both planes
                     if((N_upper == 2) && (N_lower == 2)){
@@ -799,7 +797,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
             //caps contours that have no corresponding contours on the lower plane
             if (cap_roof_of_m_cops) {
                 for (auto &cop : m_cops) {
-                    YLOGINFO("I AM THE CULPRIT 3");
                     close_hole_in_roof(cop);
                 }
             }
