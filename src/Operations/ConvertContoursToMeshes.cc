@@ -706,10 +706,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
                             auto contour = std::begin(pcs.upper);
                             auto c1_area = std::abs(contour->get().Get_Signed_Area());
-                            YLOGINFO("c1" << c1_area);
                             ++contour;
                             auto c2_area = std::abs(contour->get().Get_Signed_Area());
-                            YLOGINFO("c2:"<< c2_area);
 
                             if (c1_area < c2_area){
                                 upper_inner = pcs.upper.front();
@@ -722,10 +720,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
                             contour = std::begin(pcs.lower);
                             c1_area = std::abs(contour->get().Get_Signed_Area());
-                            YLOGINFO("c1(lower):" << c1_area);
                             ++contour;
                             c2_area = std::abs(contour->get().Get_Signed_Area());
-                            YLOGINFO("c2(lower):"<< c2_area);
 
                             if (c1_area < c2_area){
                                 lower_inner = pcs.lower.front();
