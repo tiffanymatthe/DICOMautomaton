@@ -533,7 +533,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 //YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
-
                     //If the upper plane contains 2 contours and one is enclosed in the other,
                     //tile the contours together instead of closing the floor
                     //this routine is for pipe like structures.
@@ -558,18 +557,17 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
 
                 }else if( (N_upper == 0) && (N_lower != 0) ){
-
                     //if the upper plane contains 2 contours and one is enclosed in the other,
                     //tile the contours together instead of closing the roof
                     //this routine is for pipe like structures.
-                    if (N_upper == 2){
-                        if (projected_contours_overlap(*m_cp_it, pcs.upper.front(),*m_cp_it, pcs.upper.back())
-                            && !projected_contours_intersect(*m_cp_it, pcs.upper.front(),*m_cp_it, pcs.upper.back())){
+                    if (N_lower == 2){
+                        if (projected_contours_overlap(*m_cp_it, pcs.lower.front(),*m_cp_it, pcs.lower.back())
+                            && !projected_contours_intersect(*m_cp_it, pcs.lower.front(),*m_cp_it, pcs.lower.back())){
 
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.upper.back());
+                            auto new_faces = Estimate_Contour_Correspondence(pcs.lower.front(), pcs.lower.back());
                             const auto old_face_count = amesh.vertices.size();
-                            for(const auto &p : pcs.upper.front().get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &p : pcs.upper.back().get().points) amesh.vertices.emplace_back(p);
+                            for(const auto &p : pcs.lower.front().get().points) amesh.vertices.emplace_back(p);
+                            for(const auto &p : pcs.lower.back().get().points) amesh.vertices.emplace_back(p);
                             for(const auto &fs : new_faces){
                                 const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
                                 const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
