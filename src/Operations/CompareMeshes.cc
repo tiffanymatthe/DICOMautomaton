@@ -52,7 +52,7 @@ OperationDoc OpArgDocCompareMeshes(){
 // it is edge manifold when every edge is connected to 2 faces
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isedgemanifold.html
 bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
-    std::set<std::set<uint64_t>> visited_edges;
+    std::map<std::set<uint64_t>, int> edge_counts;
 
     const auto get_face_edges = [&](const std::vector<uint64_t> &face) -> std::vector<std::set<uint64_t>> {
         std::vector<std::set<uint64_t>> edges({
@@ -69,22 +69,13 @@ bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
         auto edges = get_face_edges(face);
 
         for (auto &edge : edges) {
-            if (visited_edges.find(edge) != visited_edges.end()) continue;
-            int edge_count = 1;
-            for (auto &other_face : mesh.get()->meshes.faces) {
-                if (other_face == face) continue;
-                auto other_edges = get_face_edges(other_face);
-                for (auto &other_edge : other_edges) {
-                    if (other_edge == edge) edge_count++;
-                }
-                if (edge_count > 2) {
-                    return false;
-                }
-            }
-            if (edge_count != 2) {
-                return false;
-            }
+            edge_counts[edge] += 1;
+            if (edge_counts[edge] > 2) return false;
         }
+    }
+
+    for (auto &key_value_pair : edge_counts) {
+        if (key_value_pair.second != 2) return false;
     }
 
     return true;
@@ -94,7 +85,7 @@ bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
 // it is vertex manifold when each vertex's faces form an open or closed fan
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isvertexmanifold.html
 bool isVertexManifold(std::shared_ptr<Surface_Mesh>&mesh) {
-    
+
 }
 
 bool CompareMeshes(Drover &DICOM_data,
