@@ -53,7 +53,7 @@ std::vector<std::set<uint64_t>> get_face_edges(const std::vector<uint64_t> &face
     std::vector<std::set<uint64_t>> edges({
         std::set<uint64_t>({face[0], face[1]}),
         std::set<uint64_t>({face[1], face[2]}),
-        std::set<uint64_t>({face[2], face[1]})
+        std::set<uint64_t>({face[2], face[0]})
     });
 
     return edges;
@@ -65,18 +65,36 @@ std::vector<std::set<uint64_t>> get_face_edges(const std::vector<uint64_t> &face
 bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
     std::map<std::set<uint64_t>, int> edge_counts;
 
+    int face_count = 0;
+    // YLOGINFO("Printing vertices for mesh");
+    // for (auto &face : mesh.get()->meshes.faces) {
+    //     YLOGINFO(face_count << " face vertex indices " << face[0] << ", " << face[1] << ", " << face[2] << " with size " << face.size());
+    //     face_count++;
+    // }
+
+    face_count = 0;
     for (auto &face : mesh.get()->meshes.faces) {
         // assumes each face has 3 vertices
         auto edges = get_face_edges(face);
 
         for (auto &edge : edges) {
             edge_counts[edge] += 1;
-            if (edge_counts[edge] > 2) return false;
+            // auto itt = edge.begin();
+            // YLOGINFO("Edge count = " << edge_counts[edge] << " for edge " << *itt << ", " << *(std::next(itt)));
+            if (edge_counts[edge] > 2) {
+                // auto it = edge.begin();
+                // YLOGINFO("edge count > 2 for edge " << *it << ", " << *(std::next(it)) << " for face #" << face_count);
+                return false;
+            }
         }
+        face_count++;
     }
 
     for (auto &key_value_pair : edge_counts) {
-        if (key_value_pair.second != 2) return false;
+        if (key_value_pair.second != 2) {
+            // YLOGINFO("edge count is " << key_value_pair.second);
+            return false;
+        }
     }
 
     return true;
