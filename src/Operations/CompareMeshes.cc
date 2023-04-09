@@ -85,7 +85,7 @@ bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
 // returns true if mesh if vertex manifold
 // it is vertex manifold when each vertex's faces form an open or closed fan
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isvertexmanifold.html
-bool isVertexManifold(std::shared_ptr<Surface_Mesh>&mesh) {
+bool IsVertexManifold(std::shared_ptr<Surface_Mesh>&mesh) {
     // for each face, find faces with same edges and add to search
     // keep searching until you hit a face you look for before (closed) or ended
     // is there still faces unsearched? 
@@ -258,16 +258,17 @@ bool CompareMeshes(Drover &DICOM_data,
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
     }
 
-    
+    bool manifold1 = IsVertexManifold(mesh1) && IsEdgeManifold(mesh1);
+    bool manifold2 = IsVertexManifold(mesh2) && IsEdgeManifold(mesh2);
 
     FUNCINFO("HAUSDORFF DISTANCE: " << max_distance << " or " << second_max_distance);
     FUNCINFO("SURFACE AREA: First mesh = " << mesh1->meshes.surface_area() << ", second mesh = " << mesh2->meshes.surface_area());
     FUNCINFO("SURFACE AREA (%) difference: " << (mesh1->meshes.surface_area() - mesh2->meshes.surface_area())*100/mesh1->meshes.surface_area());
     FUNCINFO("VOLUME: First mesh = " <<abs(volume1) << ", second mesh = " << abs(volume2));
     FUNCINFO("VOLUME (%) difference: " << (abs(abs(volume1)-abs(volume2)))*100/abs(volume1));
-    FUNCINFO("CENTROID: First mesh = " << centroid1.x << "," << centroid1.y << "," << centroid1.z)
-    FUNCINFO("CENTROID: Second mesh = " << centroid2.x << "," << centroid2.y << "," << centroid2.z)
-    FUNCINFO("Centroid Shift = " << centroid_shift)
-
+    FUNCINFO("CENTROID: First mesh = " << centroid1.x << "," << centroid1.y << "," << centroid1.z);
+    FUNCINFO("CENTROID: Second mesh = " << centroid2.x << "," << centroid2.y << "," << centroid2.z);
+    FUNCINFO("Centroid Shift = " << centroid_shift);
+    FUNCINFO("MANIFOLD: First mesh = " << manifold1 << ", second mesh = " << manifold2);
     return true;
 }
