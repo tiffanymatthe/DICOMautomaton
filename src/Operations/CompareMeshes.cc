@@ -62,7 +62,7 @@ std::vector<std::set<uint64_t>> get_face_edges(const std::vector<uint64_t> &face
 // returns true if mesh is edge manifold
 // it is edge manifold when every edge is connected to 2 faces
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isedgemanifold.html
-bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
+bool IsEdgeManifold(const std::shared_ptr<Surface_Mesh> &mesh) {
     std::map<std::set<uint64_t>, int> edge_counts;
 
     int face_count = 0;
@@ -103,7 +103,7 @@ bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
 // returns true if mesh if vertex manifold
 // it is vertex manifold when each vertex's faces form an open or closed fan
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isvertexmanifold.html
-bool IsVertexManifold(std::shared_ptr<Surface_Mesh>&mesh) {
+bool IsVertexManifold(const std::shared_ptr<Surface_Mesh>&mesh) {
     // for each face, find faces with same edges and add to search
     // keep searching until you hit a face you look for before (closed) or ended
     // is there still faces unsearched? 
