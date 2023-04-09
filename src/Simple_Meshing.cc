@@ -36,6 +36,9 @@
 
 #include "Simple_Meshing.h"
 
+/* #pragma GCC push_options */
+/* #pragma GCC optimize ("O0") */
+
 /*
  * Class to represent a single node in a vertex
  */
@@ -56,9 +59,17 @@ class node {
             iA = ia; iB = ib;
             const vec3<double> ab = point_A - point_B;
             // Weights are surface area of potential next faces
-            wA = 0.5 * ab.Cross(point_B - point_A_next).length();
-            wB = 0.5 * ab.Cross(point_A - point_B_next).length();
+            /* wA = 0.5 * ab.Cross(point_B - point_A_next).length(); */
+            /* wB = 0.5 * ab.Cross(point_A - point_B_next).length(); */
 
+            // Perimeter
+            wA = ab.length()
+                + (point_A - point_A_next).length()
+                + (point_B - point_A_next).length();
+
+            wB = ab.length()
+                + (point_A - point_B_next).length()
+                + (point_B - point_B_next).length();
         }
 };
 
@@ -113,7 +124,8 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
 
     // Loop to get distances of each relevant node
     while(!min_dist.empty() && (min_dist.top().second.first != m + k || min_dist.top().second.second != n-1)){
-        auto [i, j] = min_dist.top().second;
+        size_t i = min_dist.top().second.first;
+        size_t j = min_dist.top().second.second;
         min_dist.pop();
         /* printf("%zu, %zu\n", i, j); */
         if(i == m+k && j == n-1) break;
@@ -124,16 +136,27 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
         // Traverse next nodes and set their distances based on current
         // Try down
         // k instead of n because we can't go past endpoint
-        if(i+1 <= m + k && i+1 >= path_top[j] && i+1 <= bottom && !visited.count({i+1, j})){
-            distances[i+1][j] = std::min(distances[i][j] + nodes[i][j].wA, distances[i+1][j]);
-            min_dist.push({distances[i+1][j], {i+1, j}});
-            visited.insert({i+1, j});
-        }
+        auto try_down = [&](){
+            if(i+1 <= m + k && i+1 >= path_top[j] && i+1 <= bottom && !visited.count({i+1, j})){
+                distances[i+1][j] = std::min(distances[i][j] + nodes[i][j].wA, distances[i+1][j]);
+                min_dist.push({distances[i+1][j], {i+1, j}});
+                visited.insert({i+1, j});
+            }
+        };
         // Try right
-        if(j+1 < n && i >= path_top[j+1] && i <= bottom && !visited.count({i, j+1})){
-            distances[i][j+1] = std::min(distances[i][j] + nodes[i][j].wB, distances[i][j+1]);
-            min_dist.push({distances[i][j+1], {i, j+1}});
-            visited.insert({i, j+1});
+        auto try_right = [&](){
+            if(j+1 < n && i >= path_top[j+1] && i <= bottom && !visited.count({i, j+1})){
+                distances[i][j+1] = std::min(distances[i][j] + nodes[i][j].wB, distances[i][j+1]);
+                min_dist.push({distances[i][j+1], {i, j+1}});
+                visited.insert({i, j+1});
+            }
+        };
+        // Randomize order that they're placed to avoid awkward looking (but still technically optimal) meshes
+        if(std::rand() % 2){
+            try_down(); try_right();
+        }
+        else {
+            try_right(); try_down();
         }
     }
 
@@ -142,7 +165,7 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
     ret[0] = k;
 
     for(size_t j = n-1, i = m + k; j > 0; --j){
-        while(i > 0 && distances[i-1][j] <= distances[i][j-1]) --i;
+        while(i > 0 && j > 0 && distances[i-1][j] + nodes[i-1][j].wA <= distances[i][j-1] + nodes[i][j-1].wB) --i;
         ret[j] = i;
     }
     // Cost of path is length to end node
@@ -380,6 +403,7 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
 
             nodes[i].push_back(node(i % m, j, p_i, p_j, p_i_next, p_j_next));
         }
+        nodes[i].push_back(node(i % m, n, p_i, p_j_next, p_i_next, contour_A.points.front()));
     }
 
     printf("Finding Optimal path, m=%zu, n=%zu\n", m, n);
@@ -390,7 +414,8 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
     printf("Optimal path found\n");
 
     // For debugging, don't use this for dense graphs as it will print a lot to stdout
-    /* print_path(nodes, optimal_path); */
+    /* if (m < 15 && n < 15) */
+    /*     print_path(nodes, optimal_path); */
 
     std::vector<std::array<size_t, 3>> ret;
     std::vector<std::array<size_t, 3>> ret1;
@@ -404,7 +429,7 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
             size_t next_index;
             size_t next_index1;
 
-            if(i < end_i-1) next_index = nodes[i+1][j].iA, next_index1=i+1;
+            if(i < end_i) next_index = nodes[i+1][j].iA, next_index1=i+1;
             else if(j == n-1) continue;
             else next_index = nodes[i][j+1].iB + N_A, next_index1=j+1;
 
@@ -412,20 +437,22 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
             ret1.push_back({i, j, next_index1});
         }
     }
-    printf("m: %zu, n: %zu\n\n", m, n);
-    for(auto a : ret){
-        printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]);
-    }
-    printf("\n\n");
+    /* printf("m: %zu, n: %zu\n\n", m, n); */
+    /* for(auto a : ret){ */
+    /*     printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]); */
+    /* } */
+    /* printf("\n\n"); */
 
-    for(auto a : ret1){
-        printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]);
-    }
-    printf("\n");
+    /* for(auto a : ret1){ */
+    /*     printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]); */
+    /* } */
+    /* printf("\n"); */
     
     return ret;
     
 }
+
+/* #pragma GCC pop_options */
 
 // Low-level routine that joins the vertices of two contours.
 // Returns a list of faces where the vertex indices refer to A followed by B.
