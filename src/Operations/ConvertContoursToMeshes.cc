@@ -549,7 +549,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     //tile the contours together instead of closing the floor
                     //this routine is for pipe like structures.
                     if(N_upper == 2){
-
                         if(contours_are_enclosed(*m_cp_it, pcs.upper.front(), pcs.upper.back())){
                             auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.upper.back());
                             const auto old_face_count = amesh.vertices.size();
@@ -571,7 +570,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     //tile the contours together instead of closing the roof
                     //this routine is for pipe like structures.
                     if (N_lower == 2){
-
                         if(contours_are_enclosed(*l_cp_it, pcs.lower.front(), pcs.lower.back())){
                             auto new_faces = Estimate_Contour_Correspondence(pcs.lower.front(), pcs.lower.back());
                             const auto old_face_count = amesh.vertices.size();
@@ -643,7 +641,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
                     //routine for hollow structures with an inner contour and an outer contour on both planes
                     if((N_upper == 2) && (N_lower == 2)){
-
                         //check if both planes have enclosed contours
                         if (contours_are_enclosed(*m_cp_it, pcs.upper.front(), pcs.upper.back())
                             && contours_are_enclosed(*l_cp_it, pcs.lower.front(), pcs.lower.back())){
