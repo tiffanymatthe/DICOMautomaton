@@ -397,7 +397,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
                 const auto set_union_is_empty = [](const std::set<size_t> &A, const std::set<size_t> &B) -> bool {
                     //if both sets are empty their union is not empty
-                    if (A.empty() && B.empty()){return false;}
+                    if (A.empty() && B.empty()) return false;
 
                     for(const auto &a : A){
                         if(B.count(a) != 0){
@@ -551,15 +551,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     if(N_upper == 2){
                         if(contours_are_enclosed(*m_cp_it, pcs.upper.front(), pcs.upper.back())){
                             auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.upper.back());
-                            const auto old_face_count = amesh.vertices.size();
-                            for(const auto &p : pcs.upper.front().get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &p : pcs.upper.back().get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &fs : new_faces){
-                                const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
-                                const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
-                                const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
-                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
-                                }
+                            add_faces_to_mesh(pcs.upper.front(), pcs.upper.back(), new_faces);
                         }
                     }else{
                         for(const auto &cop_refw : pcs.upper) close_hole_in_floor(cop_refw);
@@ -572,15 +564,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     if (N_lower == 2){
                         if(contours_are_enclosed(*l_cp_it, pcs.lower.front(), pcs.lower.back())){
                             auto new_faces = Estimate_Contour_Correspondence(pcs.lower.front(), pcs.lower.back());
-                            const auto old_face_count = amesh.vertices.size();
-                            for(const auto &p : pcs.lower.front().get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &p : pcs.lower.back().get().points) amesh.vertices.emplace_back(p);
-                            for(const auto &fs : new_faces){
-                                const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
-                                const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
-                                const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
-                                amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
-                                }
+                            add_faces_to_mesh(pcs.lower.front(), pcs.lower.back(), new_faces);
                         }
                     }else{
                         for(const auto &cop_refw : pcs.lower) close_hole_in_roof(cop_refw);
@@ -683,30 +667,30 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             //move to next iteration of for loop since we have tiled it
                             continue;
                         }
-                    }else{
-                        auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
-                        auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
-                
-                        // will modify contours in m_cops and l_cops, ok if only processing in one direction
-                        auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
-                        auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
-
-                        /*
-                        // Leaving this here for future debugging, for which it will no-doubt be needed...
-                        {
-                            const auto amal_cop_str = amal_upper.write_to_string();
-                            const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_upper_", 6, ".txt");
-                            OverwriteStringToFile(amal_cop_str, fname);
-                        }
-                        {
-                            const auto amal_cop_str = amal_lower.write_to_string();
-                            const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_lower_", 6, ".txt");
-                            OverwriteStringToFile(amal_cop_str, fname);
-                        }
-                        */
-                        auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
-                        add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
                     }
+
+                    auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
+                    auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
+            
+                    // will modify contours in m_cops and l_cops, ok if only processing in one direction
+                    auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
+                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
+
+                    /*
+                    // Leaving this here for future debugging, for which it will no-doubt be needed...
+                    {
+                        const auto amal_cop_str = amal_upper.write_to_string();
+                        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_upper_", 6, ".txt");
+                        OverwriteStringToFile(amal_cop_str, fname);
+                    }
+                    {
+                        const auto amal_cop_str = amal_lower.write_to_string();
+                        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_lower_", 6, ".txt");
+                        OverwriteStringToFile(amal_cop_str, fname);
+                    }
+                    */
+                    auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
+                    add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
                 }
 
             }
