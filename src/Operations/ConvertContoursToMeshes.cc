@@ -27,6 +27,7 @@
 
 #include "../Simple_Meshing.h"
 #include "../Surface_Meshes.h"
+#include "../Complex_Branching_Meshing.h"
 
 #include "ConvertContoursToMeshes.h"
 
@@ -147,7 +148,6 @@ OperationDoc OpArgDocConvertContoursToMeshes(){
 
     return out;
 }
-
 
 
 bool ConvertContoursToMeshes(Drover &DICOM_data,
@@ -537,12 +537,32 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
                 }
             };
+            
+            const auto add_faces_and_vertices = [&](
+                std::vector<std::array<size_t,3>> &new_faces,
+                std::vector<vec3<double>> &points
+                ) -> void {
+                    const auto old_face_count = amesh.vertices.size();
+                    // for(const auto &p : points) amesh.vertices.emplace_back(p);
+                    amesh.vertices.insert(amesh.vertices.end(), points.begin(), points.end());
+                    for(const auto &fs : new_faces){
+                        const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
+                        const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
+                        const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
+                        amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
+                    }
+            };
 
             // Estimate connectivity and append triangles.
             for(auto &pcs : pairings){
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
-                //YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
+
+                contour_of_points<double> amal_upper;
+                contour_of_points<double> amal_lower;
+                auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
+                auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
+                // YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
 
                 if( (N_upper != 0) && (N_lower == 0) ){
                     //If the upper plane contains 2 contours and one is enclosed in the other,
@@ -573,7 +593,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 }else if( (N_upper == 1) && (N_lower == 1) ){
                     auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
                     add_faces_to_mesh(pcs.upper.front(), pcs.lower.front(), new_faces);
-
                 }else if((N_upper == 2) && (N_lower == 1) ){
                     //check if the upper plane contains enclosed contours
                         if(contours_are_enclosed(*m_cp_it, pcs.upper.front(), pcs.upper.back())){
@@ -594,9 +613,8 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             add_faces_to_mesh(pcs.upper.front(), pcs.lower.front(), new_faces);
                         }
                     }else{
-                        //do two-to-one branching
+                        goto two_to_one_branching;
                     }
-
                 }else if( (N_upper == 1) && (N_lower == 2) ){
                     //check if the lower plane contains enclosed contours
                     if(contours_are_enclosed(*l_cp_it, pcs.lower.front(), pcs.lower.back())){
@@ -617,7 +635,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             add_faces_to_mesh(pcs.lower.front(), pcs.upper.front(), new_faces);
                         }
                     }else{
-                        //do one-to-two branching
+                        goto one_to_two_branching;
                     }
 
                 }else{
@@ -669,26 +687,39 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         }
                     }
 
-                    auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
-                    auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
-            
-                    // will modify contours in m_cops and l_cops, ok if only processing in one direction
-                    auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
-                    auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower); 
-
-                    /*
-                    // Leaving this here for future debugging, for which it will no-doubt be needed...
-                    {
-                        const auto amal_cop_str = amal_upper.write_to_string();
-                        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_upper_", 6, ".txt");
-                        OverwriteStringToFile(amal_cop_str, fname);
+                    if ( (N_upper == 2) && (N_lower == 1) ) {
+                        two_to_one_branching:
+                        YLOGINFO("Performing 2-to-1 meshing...");
+                        auto [faces, points, amal] = Mesh_With_Convex_Hull_2(pcs.upper, m_cp_it->N_0, ofst_upper);
+                        amal_upper = amal;
+                        add_faces_and_vertices(faces, points);
+                        amal_lower = pcs.lower.begin()->get();
                     }
-                    {
-                        const auto amal_cop_str = amal_lower.write_to_string();
-                        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_lower_", 6, ".txt");
-                        OverwriteStringToFile(amal_cop_str, fname);
+                    else if ( (N_upper == 1) && (N_lower == 2) ) {
+                        one_to_two_branching:
+                        YLOGINFO("Performing 1-to-2 meshing...");
+                        auto [faces, points, amal] = Mesh_With_Convex_Hull_2(pcs.lower, l_cp_it->N_0, ofst_lower);
+                        amal_lower = amal;
+                        add_faces_and_vertices(faces, points);
+                        amal_upper = pcs.upper.begin()->get();
                     }
-                    */
+                    else {
+                        amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
+                        amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower);
+                    }
+    /*
+    // Leaving this here for future debugging, for which it will no-doubt be needed...
+    {
+        const auto amal_cop_str = amal_upper.write_to_string();
+        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_upper_", 6, ".txt");
+        OverwriteStringToFile(amal_cop_str, fname);
+    }
+    {
+        const auto amal_cop_str = amal_lower.write_to_string();
+        const auto fname = Get_Unique_Sequential_Filename("/tmp/amal_lower_", 6, ".txt");
+        OverwriteStringToFile(amal_cop_str, fname);
+    }
+    */
                     auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
                     add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
                 }
