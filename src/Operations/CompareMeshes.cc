@@ -258,6 +258,9 @@ bool CompareMeshes(Drover &DICOM_data,
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
     }
 
+    FUNCINFO("Vertex manifoldness: " << IsVertexManifold(mesh1) << " and " << IsVertexManifold(mesh2));
+    FUNCINFO("Edge manifoldness: " << IsEdgeManifold(mesh1) << " and " << IsEdgeManifold(mesh2));
+
     bool manifold1 = IsVertexManifold(mesh1) && IsEdgeManifold(mesh1);
     bool manifold2 = IsVertexManifold(mesh2) && IsEdgeManifold(mesh2);
 

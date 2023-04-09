@@ -121,8 +121,8 @@ do
 
   V_DIFF=$(sed -r "s/.*difference: (-?[0-9]+\.[0-9]+).*/\1/g" <<< $VOL_DIFF_LINE)
 
-  MA1 =$(sed -r "s/.*First mesh = ([0-9]+\.[0-9]+).*/\1/g" <<< $MA_LINE)
-  MA2 =$(sed -r "s/.*second mesh = ([0-9]+\.[0-9]+).*/\1/g" <<< $MA_LINE)
+  MA1=$(sed -r "s/.*First mesh = ([0-9]+\.[0-9]+).*/\1/g" <<< $MA_LINE)
+  MA2=$(sed -r "s/.*second mesh = ([0-9]+\.[0-9]+).*/\1/g" <<< $MA_LINE)
 
   # echo "$HD1"
   # echo "$HD2"
