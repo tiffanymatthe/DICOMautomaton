@@ -528,14 +528,14 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
 
             const auto add_faces_to_mesh = [&](cop_refw_t cop_refw_A, cop_refw_t cop_refw_B,std::vector<std::array<size_t, 3UL>> new_faces) -> void{
                 const auto old_face_count = amesh.vertices.size();
-                    for(const auto &p : cop_refw_A.get().points) amesh.vertices.emplace_back(p);
-                    for(const auto &p : cop_refw_B.get().points) amesh.vertices.emplace_back(p);
-                    for(const auto &fs : new_faces){
-                        const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
-                        const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
-                        const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
-                        amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
-                    }
+                for(const auto &p : cop_refw_A.get().points) amesh.vertices.emplace_back(p);
+                for(const auto &p : cop_refw_B.get().points) amesh.vertices.emplace_back(p);
+                for(const auto &fs : new_faces){
+                    const auto f_A = static_cast<uint64_t>(fs[0] + old_face_count);
+                    const auto f_B = static_cast<uint64_t>(fs[1] + old_face_count);
+                    const auto f_C = static_cast<uint64_t>(fs[2] + old_face_count);
+                    amesh.faces.emplace_back( std::vector<uint64_t>{{f_A, f_B, f_C}} );
+                }
             };
 
             // Estimate connectivity and append triangles.
@@ -589,7 +589,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     }
 
                 }else if( (N_upper == 1) && (N_lower == 1) ){
-
                     auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
                     add_faces_to_mesh(pcs.upper.front(), pcs.lower.front(), new_faces);
 
@@ -612,7 +611,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
                             add_faces_to_mesh(pcs.upper.front(), pcs.lower.front(), new_faces);
                         }
-
                     }else{
                         //do two-to-one branching
                     }
@@ -636,7 +634,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             auto new_faces = Estimate_Contour_Correspondence(pcs.lower.front(), pcs.upper.front());
                             add_faces_to_mesh(pcs.lower.front(), pcs.upper.front(), new_faces);
                         }
-
                     }else{
                         //do one-to-two branching
                     }
@@ -689,7 +686,6 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             //move to next iteration of for loop since we have tiled it
                             continue;
                         }
-
                     }else{
                         auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                         auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
