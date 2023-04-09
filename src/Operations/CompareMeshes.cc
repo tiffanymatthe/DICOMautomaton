@@ -5,6 +5,7 @@
 #include <functional>
 #include <iterator>
 #include <list>
+#include <queue>
 #include <map>
 #include <memory>
 #include <set> 
@@ -48,21 +49,21 @@ OperationDoc OpArgDocCompareMeshes(){
     return out;
 }
 
+std::vector<std::set<uint64_t>> get_face_edges(const std::vector<uint64_t> &face) {
+    std::vector<std::set<uint64_t>> edges({
+        std::set<uint64_t>({face[0], face[1]}),
+        std::set<uint64_t>({face[1], face[2]}),
+        std::set<uint64_t>({face[2], face[1]})
+    });
+
+    return edges;
+}
+
 // returns true if mesh is edge manifold
 // it is edge manifold when every edge is connected to 2 faces
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isedgemanifold.html
 bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
     std::map<std::set<uint64_t>, int> edge_counts;
-
-    const auto get_face_edges = [&](const std::vector<uint64_t> &face) -> std::vector<std::set<uint64_t>> {
-        std::vector<std::set<uint64_t>> edges({
-            std::set<uint64_t>({face[0], face[1]}),
-            std::set<uint64_t>({face[1], face[2]}),
-            std::set<uint64_t>({face[2], face[1]})
-        });
-
-        return edges;
-    };
 
     for (auto &face : mesh.get()->meshes.faces) {
         // assumes each face has 3 vertices
@@ -85,7 +86,57 @@ bool IsEdgeManifold(std::shared_ptr<Surface_Mesh> &mesh) {
 // it is vertex manifold when each vertex's faces form an open or closed fan
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isvertexmanifold.html
 bool isVertexManifold(std::shared_ptr<Surface_Mesh>&mesh) {
+    // for each face, find faces with same edges and add to search
+    // keep searching until you hit a face you look for before (closed) or ended
+    // is there still faces unsearched? 
 
+    // store vertex to face hashmap
+    // for each vertex, store edge to list of faces
+    // start with a face
+    // make sure two edges have adjacent faces (and add to queue)
+    // search adjacent faces (only one edge now)
+    // have a list of visited edges to avoid re-searching
+    // keep searching until no more faces (make sure number of faces searched is equal to total faces)
+
+    using face_type = std::vector<uint64_t>;
+    
+    std::map<uint64_t, std::vector<face_type>> vertex_to_faces;
+
+    for (auto &face : mesh.get()->meshes.faces) {
+        vertex_to_faces[face[0]].emplace_back(face);
+        vertex_to_faces[face[1]].emplace_back(face);
+        vertex_to_faces[face[2]].emplace_back(face);
+    }
+
+    for (auto &vertex_faces_pair : vertex_to_faces) {
+        auto vertex = vertex_faces_pair.first;
+        auto faces = vertex_faces_pair.second;
+
+        std::map<std::set<uint64_t>, std::vector<face_type>> edge_to_faces;
+        for (auto &face : faces) {
+            auto edges = get_face_edges(face);
+            for (auto &edge : edges) edge_to_faces[edge].emplace_back(face);
+        }
+
+        std::set<face_type> visited_faces;
+        std::queue<face_type> face_queue;
+        face_queue.push(faces[0]);
+
+        while (face_queue.size() != 0) {
+            auto face = face_queue.front();
+            face_queue.pop();
+            if (visited_faces.find(face) != visited_faces.end()) continue; // already visited
+            visited_faces.emplace(face);
+            auto edges = get_face_edges(face);
+            for (auto &edge : edges) {
+                auto adjacent_faces = edge_to_faces[edge];
+                for (auto &adj_face : adjacent_faces) face_queue.push(adj_face);
+            }
+        }
+
+        if (visited_faces.size() != faces.size()) return false;
+    }
+    return true;
 }
 
 bool CompareMeshes(Drover &DICOM_data,
