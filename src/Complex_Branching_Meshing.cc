@@ -168,7 +168,6 @@ Contour_From_Convex_Hull_2(std::vector<contour_of_points<double>> &cops, const v
     s.push(1);
     s.push(2);
 
-    YLOGINFO("m = " << m);
     for(int i = 3; i < m; ++i) {
         while(s.size() > 1 && orientation(get_point(Next_To_Top(s)), get_point(s.top()), get_point(i)) != 2) {
             s.pop();
