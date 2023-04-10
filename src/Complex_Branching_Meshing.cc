@@ -446,7 +446,9 @@ Mesh_With_Convex_Hull_2(const std::list<std::reference_wrapper<contour_of_points
     }
     std::vector<contour_of_points<double>> list_of_cops;
     for(auto &cop : A) {
-        list_of_cops.emplace_back(cop.get());
+        auto new_cop = cop.get();
+        if (new_cop.points.front() == new_cop.points.back()) new_cop.points.pop_back();
+        list_of_cops.emplace_back(new_cop);
     }
     auto convex_hull_cop = Contour_From_Convex_Hull_2(list_of_cops, ortho_unit_A);
     auto [modified_convex_cop, left_points, right_points, midpoints] =
