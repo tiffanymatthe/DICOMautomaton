@@ -388,7 +388,7 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
 
             nodes[i].push_back(node(i % m, j, p_i, p_j, p_i_next, p_j_next));
         }
-        nodes[i].push_back(node(i % m, n, p_i, p_j_next, p_i_next, contour_A.points.front()));
+        nodes[i].push_back(node(i % m, 0, p_i, *begin_B, p_i_next, *std::next(begin_B)));
     }
 
     // Useful to check progress of tiling if its going too slow
@@ -405,15 +405,15 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
     std::vector<std::array<size_t, 3>> ret;
 
     // Reconstruct paths
-    for(size_t j = 0; j < n; ++j){
-        size_t end_i = (j == n - 1 ? optimal_path[0] + m : optimal_path[j+1]);
-        for(size_t i = optimal_path[j]; i < end_i + 1; ++i){
+    for(size_t j = 0; j <= n; ++j){
+        size_t end_i = (j == n ? optimal_path[0] + m : optimal_path[j+1]);
+        for(size_t i = optimal_path[j]; i <= end_i; ++i){
             // If end then the next node is to the right, otherwise down
             // On last column we can't go right any more so skip
             size_t next_index;
 
             if(i < end_i) next_index = nodes[i+1][j].iA;
-            else if(j == n-1) continue;
+            else if(j == n) continue;
             else next_index = nodes[i][j+1].iB + N_A;
 
             ret.push_back({nodes[i][j].iA, nodes[i][j].iB + N_A, next_index});
