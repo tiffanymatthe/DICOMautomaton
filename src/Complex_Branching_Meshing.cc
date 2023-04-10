@@ -262,6 +262,10 @@ Modify_Convex_Hull(const contour_of_points<double> &convex_hull, const std::vect
         std::swap(start_B, end_B);
     }
 
+    auto d1 = start_A.sq_dist(midpoint_for_start_A);
+    auto d2 = end_A.sq_dist(midpoint_for_end_A);
+    if (std::max(d1,d2) > 2 * std::min(d1,d2)) throw std::runtime_error("Complex 2 to 1 meshing is not suitable for this contour. Aborted");
+
     const auto get_convex_and_non_convex_points =
         [&](const int contour_index, vec3<double> start_point,
             vec3<double> end_point) -> std::tuple<std::list<vec3<double>>, std::list<vec3<double>>> {

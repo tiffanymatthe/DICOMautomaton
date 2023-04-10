@@ -612,11 +612,15 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             add_faces_to_mesh(pcs.upper.front(), pcs.lower.front(), new_faces);
                         }
                     }else{
-                        auto [faces, points, amal_upper] = Mesh_With_Convex_Hull_2(pcs.upper, m_cp_it->N_0, ofst_upper);
-                        add_faces_and_vertices(faces, points);
-                        auto amal_lower = pcs.lower.begin()->get();
-                        auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
-                        add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
+                        try {
+                            auto [faces, points, amal_upper] = Mesh_With_Convex_Hull_2(pcs.upper, m_cp_it->N_0, ofst_upper);
+                            add_faces_and_vertices(faces, points);
+                            auto amal_lower = pcs.lower.begin()->get();
+                            auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
+                            add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
+                        } catch (const std::runtime_error& error) {
+                            goto generic_n_to_n_meshing;
+                        }
                     }
                 }else if( (N_upper == 1) && (N_lower == 2) ){
                     //check if the lower plane contains enclosed contours
@@ -638,11 +642,15 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             add_faces_to_mesh(pcs.lower.front(), pcs.upper.front(), new_faces);
                         }
                     }else{
-                        auto [faces, points, amal_lower] = Mesh_With_Convex_Hull_2(pcs.lower, l_cp_it->N_0, ofst_lower);
-                        add_faces_and_vertices(faces, points);
-                        auto amal_upper = pcs.upper.begin()->get();
-                        auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
-                        add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
+                        try {
+                            auto [faces, points, amal_lower] = Mesh_With_Convex_Hull_2(pcs.lower, l_cp_it->N_0, ofst_lower);
+                            add_faces_and_vertices(faces, points);
+                            auto amal_upper = pcs.upper.begin()->get();
+                            auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
+                            add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);    
+                        } catch (const std::runtime_error& error) {
+                            goto generic_n_to_n_meshing;
+                        }
                     }
                 }else{
                     //YLOGINFO("Performing N-to-N meshing..");
@@ -692,6 +700,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             continue;
                         }
                     } else {
+                        generic_n_to_n_meshing:
                         auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
                         auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower);
     /*
