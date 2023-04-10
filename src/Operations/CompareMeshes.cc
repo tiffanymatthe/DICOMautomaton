@@ -59,12 +59,38 @@ std::vector<std::set<uint64_t>> get_face_edges(const std::vector<uint64_t> &face
     return edges;
 }
 
+// will consolidate different indices that point to same vertex
+// will not modify mesh
+std::vector<std::vector<uint64_t>> GetCleanFaces(const std::shared_ptr<Surface_Mesh> &mesh) {
+    std::map<vec3<double>, std::vector<int>> vertex_to_indices;
+    int i = 0;
+    auto &vertices = mesh.get()->meshes.vertices;
+    for (auto &vertex : vertices) {
+        vertex_to_indices[vertex].emplace_back(i);
+        if (vertex_to_indices[vertex].size() > 1) YLOGINFO("Vertex " << vertex << " has " << vertex_to_indices[vertex].size());
+        i++;
+    }
+
+    std::vector<std::vector<uint64_t>> new_faces;
+
+    // loop through faces and access vertex for each one. pick first index
+    for (auto &face : mesh.get()->meshes.faces) {
+        std::vector<uint64_t> new_face;
+        for (auto &vertex_index : face) {
+            new_face.emplace_back(vertex_to_indices[vertices[vertex_index]].front());
+        }
+        new_faces.emplace_back(new_face);
+    }
+
+    return new_faces;
+}
+
 // returns true if mesh is edge manifold
 // it is edge manifold when every edge is connected to 2 faces
 // https://www.mathworks.com/help/lidar/ref/surfacemesh.isedgemanifold.html
 bool IsEdgeManifold(const std::shared_ptr<Surface_Mesh> &mesh) {
     std::map<std::set<uint64_t>, int> edge_counts;
-
+    auto mesh_faces = GetCleanFaces(mesh);
     int face_count = 0;
     // YLOGINFO("Printing vertices for mesh");
     // for (auto &face : mesh.get()->meshes.faces) {
@@ -73,7 +99,7 @@ bool IsEdgeManifold(const std::shared_ptr<Surface_Mesh> &mesh) {
     // }
 
     face_count = 0;
-    for (auto &face : mesh.get()->meshes.faces) {
+    for (auto &face : mesh_faces) {
         // assumes each face has 3 vertices
         auto edges = get_face_edges(face);
 
@@ -117,13 +143,13 @@ bool IsVertexManifold(const std::shared_ptr<Surface_Mesh>&mesh) {
     // keep searching until no more faces (make sure number of faces searched is equal to total faces)
 
     using face_type = std::vector<uint64_t>;
-    
+    auto mesh_faces = GetCleanFaces(mesh);
     std::map<uint64_t, std::vector<face_type>> vertex_to_faces;
 
-    for (auto &face : mesh.get()->meshes.faces) {
-        vertex_to_faces[face[0]].emplace_back(face);
-        vertex_to_faces[face[1]].emplace_back(face);
-        vertex_to_faces[face[2]].emplace_back(face);
+    for (auto &mesh_face : mesh_faces) {
+        vertex_to_faces[mesh_face[0]].emplace_back(mesh_face);
+        vertex_to_faces[mesh_face[1]].emplace_back(mesh_face);
+        vertex_to_faces[mesh_face[2]].emplace_back(mesh_face);
     }
 
     for (auto &vertex_faces_pair : vertex_to_faces) {
