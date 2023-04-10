@@ -558,8 +558,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                 const auto N_upper = pcs.upper.size();
                 const auto N_lower = pcs.lower.size();
 
-                contour_of_points<double> amal_upper;
-                contour_of_points<double> amal_lower;
+                // useful for addition of midpoints in complex branching
                 auto ofst_upper = m_cp_it->N_0 * contour_sep * -0.49;
                 auto ofst_lower = m_cp_it->N_0 * contour_sep *  0.49;
                 // YLOGINFO("Processing contour map from " << N_upper << " to " << N_lower);
@@ -613,7 +612,11 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             add_faces_to_mesh(pcs.upper.front(), pcs.lower.front(), new_faces);
                         }
                     }else{
-                        goto two_to_one_branching;
+                        auto [faces, points, amal_upper] = Mesh_With_Convex_Hull_2(pcs.upper, m_cp_it->N_0, ofst_upper);
+                        add_faces_and_vertices(faces, points);
+                        auto amal_lower = pcs.lower.begin()->get();
+                        auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
+                        add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
                     }
                 }else if( (N_upper == 1) && (N_lower == 2) ){
                     //check if the lower plane contains enclosed contours
@@ -635,9 +638,12 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             add_faces_to_mesh(pcs.lower.front(), pcs.upper.front(), new_faces);
                         }
                     }else{
-                        goto one_to_two_branching;
+                        auto [faces, points, amal_lower] = Mesh_With_Convex_Hull_2(pcs.lower, l_cp_it->N_0, ofst_lower);
+                        add_faces_and_vertices(faces, points);
+                        auto amal_upper = pcs.upper.begin()->get();
+                        auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
+                        add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
                     }
-
                 }else{
                     //YLOGINFO("Performing N-to-N meshing..");
 
@@ -685,28 +691,9 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             //move to next iteration of for loop since we have tiled it
                             continue;
                         }
-                    }
-
-                    if ( (N_upper == 2) && (N_lower == 1) ) {
-                        two_to_one_branching:
-                        YLOGINFO("Performing 2-to-1 meshing...");
-                        auto [faces, points, amal] = Mesh_With_Convex_Hull_2(pcs.upper, m_cp_it->N_0, ofst_upper);
-                        amal_upper = amal;
-                        add_faces_and_vertices(faces, points);
-                        amal_lower = pcs.lower.begin()->get();
-                    }
-                    else if ( (N_upper == 1) && (N_lower == 2) ) {
-                        one_to_two_branching:
-                        YLOGINFO("Performing 1-to-2 meshing...");
-                        auto [faces, points, amal] = Mesh_With_Convex_Hull_2(pcs.lower, l_cp_it->N_0, ofst_lower);
-                        amal_lower = amal;
-                        add_faces_and_vertices(faces, points);
-                        amal_upper = pcs.upper.begin()->get();
-                    }
-                    else {
-                        amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
-                        amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower);
-                    }
+                    } else {
+                        auto amal_upper = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_upper, pcs.upper); 
+                        auto amal_lower = Minimally_Amalgamate_Contours(m_cp_it->N_0, ofst_lower, pcs.lower);
     /*
     // Leaving this here for future debugging, for which it will no-doubt be needed...
     {
@@ -720,10 +707,10 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
         OverwriteStringToFile(amal_cop_str, fname);
     }
     */
-                    auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
-                    add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
+                        auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
+                        add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
+                    }
                 }
-
             }
             //caps contours that have no corresponding contours on the lower plane
             if (cap_roof_of_m_cops) {
