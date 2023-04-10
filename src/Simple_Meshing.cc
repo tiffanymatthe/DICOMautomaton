@@ -36,6 +36,8 @@
 
 #include "Simple_Meshing.h"
 
+// This can be useful when debuggin with gdb to prevent <optimized out>
+// Obviously don't enable this when tiling large objects
 /* #pragma GCC push_options */
 /* #pragma GCC optimize ("O0") */
 
@@ -103,8 +105,6 @@ void convert_nonoverlapping(
 std::pair<std::vector<size_t>, double> 
 single_path(std::vector<std::vector<node>>& nodes, size_t k,
         std::vector<size_t>& path_top, std::vector<size_t>& path_bottom){
-    /* printf("Finding optimal path for %zu\n", k); */
-
     size_t m = nodes.size()/2, n = nodes[0].size();
 
     convert_nonoverlapping(path_top, path_bottom);
@@ -127,7 +127,6 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
         size_t i = min_dist.top().second.first;
         size_t j = min_dist.top().second.second;
         min_dist.pop();
-        /* printf("%zu, %zu\n", i, j); */
         if(i == m+k && j == n-1) break;
 
         // Bottom of the current path
@@ -136,27 +135,16 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
         // Traverse next nodes and set their distances based on current
         // Try down
         // k instead of n because we can't go past endpoint
-        auto try_down = [&](){
-            if(i+1 <= m + k && i+1 >= path_top[j] && i+1 <= bottom && !visited.count({i+1, j})){
-                distances[i+1][j] = std::min(distances[i][j] + nodes[i][j].wA, distances[i+1][j]);
-                min_dist.push({distances[i+1][j], {i+1, j}});
-                visited.insert({i+1, j});
-            }
-        };
-        // Try right
-        auto try_right = [&](){
-            if(j+1 < n && i >= path_top[j+1] && i <= bottom && !visited.count({i, j+1})){
-                distances[i][j+1] = std::min(distances[i][j] + nodes[i][j].wB, distances[i][j+1]);
-                min_dist.push({distances[i][j+1], {i, j+1}});
-                visited.insert({i, j+1});
-            }
-        };
-        // Randomize order that they're placed to avoid awkward looking (but still technically optimal) meshes
-        if(std::rand() % 2){
-            try_down(); try_right();
+        if(i+1 <= m + k && i+1 >= path_top[j] && i+1 <= bottom && !visited.count({i+1, j})){
+            distances[i+1][j] = std::min(distances[i][j] + nodes[i][j].wA, distances[i+1][j]);
+            min_dist.push({distances[i+1][j], {i+1, j}});
+            visited.insert({i+1, j});
         }
-        else {
-            try_right(); try_down();
+        // Try right
+        if(j+1 < n && i >= path_top[j+1] && i <= bottom && !visited.count({i, j+1})){
+            distances[i][j+1] = std::min(distances[i][j] + nodes[i][j].wB, distances[i][j+1]);
+            min_dist.push({distances[i][j+1], {i, j+1}});
+            visited.insert({i, j+1});
         }
     }
 
@@ -186,7 +174,6 @@ single_path(std::vector<std::vector<node>>& nodes, size_t k,
 std::pair<std::vector<size_t>, double> 
 paths_between(std::vector<std::vector<node>>& nodes, size_t i, size_t j, 
         std::vector<size_t>& path_i, std::vector<size_t>& path_j){
-    /* printf("Finding paths between %zu and %zu\n", i, j); */
     // If we're at something of length 2 or less, stop recursion
     if(j-i < 2) return {std::vector<size_t>(), std::numeric_limits<double>::max()};
     size_t k = (i + j) / 2;
@@ -379,8 +366,6 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
     size_t m = N_A - 1;
     size_t n = N_B - 1;
 
-    printf("Setting up graph\n");
-
     // We repeat over A twice, since to search the graph we need to search repeats
     // Don't loop over all points since last point is repeat of first
     for(size_t i = 0; i < 2 * m; ++i, ++iter_A){
@@ -406,19 +391,18 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
         nodes[i].push_back(node(i % m, n, p_i, p_j_next, p_i_next, contour_A.points.front()));
     }
 
-    printf("Finding Optimal path, m=%zu, n=%zu\n", m, n);
+    // Useful to check progress of tiling if its going too slow
+    /* printf("Finding Optimal path, m=%zu, n=%zu\n", m, n); */
 
     // Execute shortest path graph search
     std::vector<size_t> optimal_path = all_paths(nodes);
 
-    printf("Optimal path found\n");
 
-    // For debugging, don't use this for dense graphs as it will print a lot to stdout
+    // Even for debugging, don't use this for dense graphs as it will print a lot to stdout
     /* if (m < 15 && n < 15) */
     /*     print_path(nodes, optimal_path); */
 
     std::vector<std::array<size_t, 3>> ret;
-    std::vector<std::array<size_t, 3>> ret1;
 
     // Reconstruct paths
     for(size_t j = 0; j < n; ++j){
@@ -427,26 +411,14 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
             // If end then the next node is to the right, otherwise down
             // On last column we can't go right any more so skip
             size_t next_index;
-            size_t next_index1;
 
-            if(i < end_i) next_index = nodes[i+1][j].iA, next_index1=i+1;
+            if(i < end_i) next_index = nodes[i+1][j].iA;
             else if(j == n-1) continue;
-            else next_index = nodes[i][j+1].iB + N_A, next_index1=j+1;
+            else next_index = nodes[i][j+1].iB + N_A;
 
             ret.push_back({nodes[i][j].iA, nodes[i][j].iB + N_A, next_index});
-            ret1.push_back({i, j, next_index1});
         }
     }
-    /* printf("m: %zu, n: %zu\n\n", m, n); */
-    /* for(auto a : ret){ */
-    /*     printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]); */
-    /* } */
-    /* printf("\n\n"); */
-
-    /* for(auto a : ret1){ */
-    /*     printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]); */
-    /* } */
-    /* printf("\n"); */
     
     return ret;
     
@@ -972,11 +944,6 @@ YLOGWARN("Terminated meshing early. Mesh may be incomplete.");
     }
     ////////////////////////////////
 */
-
-    for(auto a : faces){
-        printf("{%lu, %lu, %lu}, ", a[0], a[1], a[2]);
-    }
-    printf("\n");
 
     return faces;
 }
