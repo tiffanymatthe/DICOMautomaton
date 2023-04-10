@@ -302,11 +302,15 @@ bool CompareMeshes(Drover &DICOM_data,
                 P_B.x*P_A.y*P_C.z + P_A.x*P_B.y*P_C.z)/(6.0);
     }
 
-    FUNCINFO("Vertex manifoldness: " << IsVertexManifold(mesh1) << " and " << IsVertexManifold(mesh2));
-    FUNCINFO("Edge manifoldness: " << IsEdgeManifold(mesh1) << " and " << IsEdgeManifold(mesh2));
+    bool v_manifold_1 = IsVertexManifold(mesh1);
+    bool v_manifold_2 = IsVertexManifold(mesh2);
+    bool e_manifold_1 = IsEdgeManifold(mesh1);
+    bool e_manifold_2 = IsEdgeManifold(mesh2);
+    FUNCINFO("Vertex manifoldness: " << v_manifold_1 << " and " << v_manifold_2);
+    FUNCINFO("Edge manifoldness: " << e_manifold_1 << " and " << e_manifold_2);
 
-    bool manifold1 = IsVertexManifold(mesh1) && IsEdgeManifold(mesh1);
-    bool manifold2 = IsVertexManifold(mesh2) && IsEdgeManifold(mesh2);
+    bool manifold1 = v_manifold_1 && e_manifold_1;
+    bool manifold2 = v_manifold_2 && e_manifold_2;
 
     FUNCINFO("HAUSDORFF DISTANCE: " << max_distance << " or " << second_max_distance);
     FUNCINFO("SURFACE AREA: First mesh = " << mesh1->meshes.surface_area() << ", second mesh = " << mesh2->meshes.surface_area());
