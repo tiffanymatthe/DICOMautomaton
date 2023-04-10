@@ -550,7 +550,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     //this routine is for pipe like structures.
                     if(N_upper == 2){
                         if(contours_are_enclosed(*m_cp_it, pcs.upper.front(), pcs.upper.back())){
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.upper.back());
+                            auto new_faces = Tile_Contours(pcs.upper.front(), pcs.upper.back());
                             add_faces_to_mesh(pcs.upper.front(), pcs.upper.back(), new_faces);
                         }
                     }else{
@@ -563,7 +563,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                     //this routine is for pipe like structures.
                     if (N_lower == 2){
                         if(contours_are_enclosed(*l_cp_it, pcs.lower.front(), pcs.lower.back())){
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.lower.front(), pcs.lower.back());
+                            auto new_faces = Tile_Contours(pcs.lower.front(), pcs.lower.back());
                             add_faces_to_mesh(pcs.lower.front(), pcs.lower.back(), new_faces);
                         }
                     }else{
@@ -587,11 +587,11 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         //cap the smaller contour and tile the larger contour with the lower plane contour
                         if  (c1_area < c2_area){
                             close_hole_in_floor(pcs.upper.front());
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.upper.back(), pcs.lower.front());
+                            auto new_faces = Tile_Contours(pcs.upper.back(), pcs.lower.front());
                             add_faces_to_mesh(pcs.upper.back(), pcs.lower.front(), new_faces);
                         }else{
                             close_hole_in_floor(pcs.upper.back());
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.upper.front(), pcs.lower.front());
+                            auto new_faces = Tile_Contours(pcs.upper.front(), pcs.lower.front());
                             add_faces_to_mesh(pcs.upper.front(), pcs.lower.front(), new_faces);
                         }
                     }else{
@@ -610,11 +610,11 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         //cap the smaller contour and tile the larger contour with the lower plane contour
                         if  (c1_area < c2_area){
                             close_hole_in_roof(pcs.lower.front());
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.lower.back(), pcs.upper.front());
+                            auto new_faces = Tile_Contours(pcs.lower.back(), pcs.upper.front());
                             add_faces_to_mesh(pcs.lower.back(), pcs.upper.front(), new_faces);
                         }else{
                             close_hole_in_roof(pcs.lower.back());
-                            auto new_faces = Estimate_Contour_Correspondence(pcs.lower.front(), pcs.upper.front());
+                            auto new_faces = Tile_Contours(pcs.lower.front(), pcs.upper.front());
                             add_faces_to_mesh(pcs.lower.front(), pcs.upper.front(), new_faces);
                         }
                     }else{
@@ -660,10 +660,10 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                             }
 
                             //connect inner contours together and outer contours together
-                            auto new_faces = Estimate_Contour_Correspondence(lower_inner, upper_inner);
+                            auto new_faces = Tile_Contours(lower_inner, upper_inner);
                             add_faces_to_mesh(lower_inner, upper_inner, new_faces);
                             
-                            new_faces = Estimate_Contour_Correspondence(lower_outer, upper_outer);
+                            new_faces = Tile_Contours(lower_outer, upper_outer);
                             add_faces_to_mesh(lower_outer, upper_outer, new_faces);
                             //move to next iteration of for loop since we have tiled it
                             continue;
@@ -690,7 +690,7 @@ bool ConvertContoursToMeshes(Drover &DICOM_data,
                         OverwriteStringToFile(amal_cop_str, fname);
                     }
                     */
-                    auto new_faces = Estimate_Contour_Correspondence(std::ref(amal_upper), std::ref(amal_lower));
+                    auto new_faces = Tile_Contours(std::ref(amal_upper), std::ref(amal_lower));
                     add_faces_to_mesh(std::ref(amal_upper), std::ref(amal_lower), new_faces);
                 }
 

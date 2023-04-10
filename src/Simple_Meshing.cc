@@ -363,8 +363,8 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
     auto p_i_next = *iter_A;
     iter_A = std::next(iter_A);
 
-    size_t m = N_A - 1;
-    size_t n = N_B - 1;
+    size_t m = *begin_A == contour_A.points.back() ? N_A - 1 : N_A;
+    size_t n = *begin_B == contour_B.points.back() ? N_A - 1 : N_A;
 
     // We repeat over A twice, since to search the graph we need to search repeats
     // Don't loop over all points since last point is repeat of first
@@ -392,15 +392,15 @@ std::vector< std::array<size_t, 3> > Tile_Contours(
     }
 
     // Useful to check progress of tiling if its going too slow
-    /* printf("Finding Optimal path, m=%zu, n=%zu\n", m, n); */
+    printf("Finding Optimal path, m=%zu, n=%zu\n", m, n);
 
     // Execute shortest path graph search
     std::vector<size_t> optimal_path = all_paths(nodes);
 
 
     // Even for debugging, don't use this for dense graphs as it will print a lot to stdout
-    /* if (m < 15 && n < 15) */
-    /*     print_path(nodes, optimal_path); */
+    if (m < 15 && n < 15)
+        print_path(nodes, optimal_path);
 
     std::vector<std::array<size_t, 3>> ret;
 
